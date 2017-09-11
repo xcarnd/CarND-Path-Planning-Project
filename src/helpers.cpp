@@ -3,10 +3,11 @@
 //
 
 #include "helpers.h"
+#include <cmath>
 
 using namespace std;
 
-int ClosestWaypoint(double x, double y, std::vector<double> maps_x, std::vector<double> maps_y) {
+int ClosestWaypoint(double x, double y, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
 
 	double closestLen = 100000; //large number
 	int closestWaypoint = 0;
@@ -26,7 +27,7 @@ int ClosestWaypoint(double x, double y, std::vector<double> maps_x, std::vector<
 
 }
 
-int NextWaypoint(double x, double y, double theta, std::vector<double> maps_x, std::vector<double> maps_y) {
+int NextWaypoint(double x, double y, double theta, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
 
 	int closestWaypoint = ClosestWaypoint(x, y, maps_x, maps_y);
 
@@ -45,7 +46,7 @@ int NextWaypoint(double x, double y, double theta, std::vector<double> maps_x, s
 
 }
 
-std::vector<double> getFrenet(double x, double y, double theta, std::vector<double> maps_x, std::vector<double> maps_y) {
+std::vector<double> getFrenet(double x, double y, double theta, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
 	int next_wp = NextWaypoint(x, y, theta, maps_x, maps_y);
 
 	int prev_wp;
@@ -114,3 +115,4 @@ getXY(double s, double d, std::vector<double> maps_s, std::vector<double> maps_x
 	return {x, y};
 
 }
+

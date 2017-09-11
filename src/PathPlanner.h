@@ -7,10 +7,22 @@
 
 
 #include <vector>
+#include <random>
 
 class PathPlanner {
 
 private:
+
+	/**
+	 * map data for x
+	 */
+	std::vector<double> map_x;
+
+	/**
+	 * map data for y
+	 */
+	std::vector<double> map_y;
+
 	/**
 	 * velocity limit in m/s
 	 */
@@ -38,8 +50,33 @@ private:
 	 */
 	int num_samples;
 
+	/**
+	 * sigma for s component when doing random sampling.
+	 */
+	double sample_sigma_s;
+
+	/**
+	 * sigma for d component when doing random sampling.
+	 */
+	double sample_sigma_d;
+
+	/**
+	 * time interval for path generation
+	 */
+	double pg_interval;
+
+	/**
+	 * random number engine
+	 */
+	std::default_random_engine e;
+
+private:
+	std::vector<double> jmt(const std::vector<double>& start, const std::vector<double>& end, double t);
+
+	std::vector<double> generate_trajectory(const std::vector<double>& coeffs, double t);
+
 public:
-	PathPlanner();
+	PathPlanner(const std::vector<double>& map_x, const std::vector<double>& map_y);
 	void get_path(double car_x, double car_y, double theta,
 	              double car_s, double car_d,
 	              double car_speed,

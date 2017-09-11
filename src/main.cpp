@@ -32,7 +32,6 @@ string hasData(string s) {
 
 int main() {
 	uWS::Hub h;
-	PathPlanner planner;
 
 	// Load up map values for waypoint's x,y,s and d normalized normal vectors
 	vector<double> map_waypoints_x;
@@ -67,6 +66,8 @@ int main() {
 		map_waypoints_dx.push_back(d_x);
 		map_waypoints_dy.push_back(d_y);
 	}
+
+	PathPlanner planner(map_waypoints_x, map_waypoints_y);
 
 	h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s, &map_waypoints_dx, &map_waypoints_dy,
 			            &planner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,

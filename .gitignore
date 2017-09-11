@@ -5,3 +5,4 @@ cmake-build-debug/
 *.sln
 *.vcxproj
 *.vcxproj.*
+x64/
