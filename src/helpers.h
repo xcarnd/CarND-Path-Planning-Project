@@ -29,4 +29,12 @@ std::vector<double> getFrenet(double x, double y, double theta, std::vector<doub
 // Transform from Frenet s,d coordinates to Cartesian x,y
 std::vector<double> getXY(double s, double d, std::vector<double> maps_s, std::vector<double> maps_x, std::vector<double> maps_y);
 
+inline double getMeterPerSecond(double mph) {
+	return 0.44704 * mph;
+}
+
+inline double getMilePerHour(double mps) {
+	return 2.236936 * mps;
+}
+
 #endif //PATH_PLANNING_HELPERS_H

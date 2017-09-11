@@ -4,17 +4,24 @@
 #include "helpers.h"
 #include "PathPlanner.h"
 
+#include <iostream>
+
 using namespace std;
 
+PathPlanner::PathPlanner()
+: max_velocity (getMeterPerSecond(50)),
+  planning_t(5),
+  time_step(0.5),
+  scales(4),
+  num_samples(9)
+{}
+
 void
-PathPlanner::get_path(double car_x, double car_y, double theta, std::vector<double> &next_x_vals,
-                      std::vector<double> &next_y_vals) {
+PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, double car_d, double car_speed,
+                      const std::vector<double> &path_x_vals, const std::vector<double> &path_y_vals,
+                      std::vector<double> &new_path_x_vals, std::vector<double> &new_path_y_vals) {
 
-	double dist_inc = 0.5;
-
-	for (int i = 0; i < 50; ++i) {
-		next_x_vals.push_back(car_x + (dist_inc * i) * cos(deg2rad(theta)));
-		next_y_vals.push_back(car_y + (dist_inc * i) * sin(deg2rad(theta)));
-	}
+	// predict the target goal after planning_t seconds
+	
 
 }
