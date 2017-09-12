@@ -1,7 +1,6 @@
 #include "consts.h"
 #include "helpers.h"
 #include "cost_functions.h"
-#include <cmath>
 
 using namespace std;
 

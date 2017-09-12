@@ -42,7 +42,7 @@ namespace {
 	};
 
 	inline int get_lane_no(double d) {
-		return std::floor(d / LANE_WIDTH);
+		return static_cast<int>(std::floor(d / LANE_WIDTH));
 	}
 
 	inline double get_lane_center(int lane) {
@@ -72,7 +72,6 @@ PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, do
 	// predict the target goal after planning_t seconds
 	vector<double> start_s;
 	vector<double> start_d;
-	int current_lane = get_lane_no(car_s);
 	double v_s;
 	double a_s;
 	double v_d;
@@ -159,7 +158,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, do
 	}
 
 	auto min_iter = min_element(costs.begin(), costs.end());
-	size_t min_idx = distance(costs.begin(), min_iter);
+	int min_idx = static_cast<int>(distance(costs.begin(), min_iter));
 
 	const Trajectory& min_traj = trajectories[min_idx];
 	cout << "s: " << min_traj.s_poly << endl;
@@ -200,8 +199,7 @@ Polynomial PathPlanner::jmt(const std::vector<double>& start, const std::vector<
 
 void PathPlanner::generate_xy_trajectory(const Trajectory& trajectory,
 	std::vector<double>& out_x, std::vector<double>& out_y) {
-	int num_pts = (int(ceil(trajectory.t / pg_interval)));
-	int t = trajectory.t;
+	double t = trajectory.t;
 	double ts = 0.0 + pg_interval;
 	while (ts < t) {
 		double s = trajectory.s_poly(ts);
