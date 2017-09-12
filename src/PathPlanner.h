@@ -9,6 +9,8 @@
 #include <vector>
 #include <random>
 
+#include "helpers.h"
+
 class PathPlanner {
 
 private:
@@ -22,6 +24,11 @@ private:
 	 * map data for y
 	 */
 	std::vector<double> map_y;
+
+	/**
+	 * map data for s
+	 */
+	std::vector<double> map_s;
 
 	/**
 	 * velocity limit in m/s
@@ -71,12 +78,12 @@ private:
 	std::default_random_engine e;
 
 private:
-	std::vector<double> jmt(const std::vector<double>& start, const std::vector<double>& end, double t);
+	Polynomial jmt(const std::vector<double>& start, const std::vector<double>& end, double t);
 
-	std::vector<double> generate_trajectory(const std::vector<double>& coeffs, double t);
+	void generate_xy_trajectory(const Trajectory& trajectory, std::vector<double>& out_x, std::vector<double>& out_y);
 
 public:
-	PathPlanner(const std::vector<double>& map_x, const std::vector<double>& map_y);
+	PathPlanner(const std::vector<double>& map_x, const std::vector<double>& map_y, const std::vector<double>& map_s);
 	void get_path(double car_x, double car_y, double theta,
 	              double car_s, double car_d,
 	              double car_speed,

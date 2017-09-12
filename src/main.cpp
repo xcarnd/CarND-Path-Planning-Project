@@ -67,7 +67,7 @@ int main() {
 		map_waypoints_dy.push_back(d_y);
 	}
 
-	PathPlanner planner(map_waypoints_x, map_waypoints_y);
+	PathPlanner planner(map_waypoints_x, map_waypoints_y, map_waypoints_s);
 
 	h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s, &map_waypoints_dx, &map_waypoints_dy,
 			            &planner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -106,7 +106,7 @@ int main() {
 
 					// Sensor Fusion Data, a list of all other cars on the same side of the road.
 					auto sensor_fusion = j[1]["sensor_fusion"];
-					cout<<sensor_fusion<<endl;
+					// cout<<sensor_fusion<<endl;
 
 					json msgJson;
 
@@ -117,13 +117,15 @@ int main() {
 					                 car_s, car_d,
 					                 car_speed,
 					                 previous_path_x, previous_path_y,
-					                 next_y_vals, next_x_vals);
+					                 next_x_vals, next_y_vals);
 
 					// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 					msgJson["next_x"] = next_x_vals;
 					msgJson["next_y"] = next_y_vals;
 
 					auto msg = "42[\"control\"," + msgJson.dump() + "]";
+
+					cout << msg << endl;
 
 					//this_thread::sleep_for(chrono::milliseconds(1000));
 					ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
@@ -162,7 +164,7 @@ int main() {
 	});
 
 	int port = 4567;
-	if (h.listen(port)) {
+	if (h.listen("0.0.0.0", port)) {
 		std::cout << "Listening to port " << port << std::endl;
 	} else {
 		std::cerr << "Failed to listen to port" << std::endl;
@@ -170,83 +172,3 @@ int main() {
 	}
 	h.run();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

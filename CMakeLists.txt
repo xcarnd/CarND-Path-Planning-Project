@@ -7,7 +7,7 @@ add_definitions(-std=c++11)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
-set(sources src/main.cpp src/PathPlanner.cpp src/PathPlanner.h src/helpers.cpp src/helpers.h)
+set(sources src/main.cpp src/PathPlanner.cpp src/helpers.cpp src/cost_functions.cpp)
 
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 

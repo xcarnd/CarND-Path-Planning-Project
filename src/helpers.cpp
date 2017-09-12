@@ -91,7 +91,7 @@ std::vector<double> getFrenet(double x, double y, double theta, const std::vecto
 }
 
 std::vector<double>
-getXY(double s, double d, std::vector<double> maps_s, std::vector<double> maps_x, std::vector<double> maps_y) {
+getXY(double s, double d, const std::vector<double>& maps_s, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
 	int prev_wp = -1;
 
 	while (s > maps_s[prev_wp + 1] && (prev_wp < (int) (maps_s.size() - 1))) {
@@ -116,3 +116,23 @@ getXY(double s, double d, std::vector<double> maps_s, std::vector<double> maps_x
 
 }
 
+std::ostream& operator<< (std::ostream& s, const Polynomial& poly) {
+	s << "f(x) = ";
+	int order = poly.coeffs.size() - 1;
+	auto iter_r = poly.coeffs.rbegin();
+	while (iter_r != poly.coeffs.rend()) {
+		if (order == 1) {
+			s << (*iter_r) << "* x";
+		} else if (order == 0) {
+			s << (*iter_r);
+		} else {
+			s << (*iter_r) << "* x^" << order;
+		}
+		++iter_r;
+		--order;
+		if (iter_r != poly.coeffs.rend()) {
+			s << " + ";
+		}
+	}
+	return s;
+}
