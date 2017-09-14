@@ -4,7 +4,7 @@
 #include <vector>
 #include "helpers.h"
 
-typedef double (*CostFunction)(const Trajectory& trjectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
+typedef double (*CostFunction)(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
 
 struct WeightedCostFunction {
 	std::string name;
@@ -15,5 +15,9 @@ struct WeightedCostFunction {
 double s_diff_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
 
 double d_diff_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
+
+double max_velocity_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
+
+double max_jerk_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
 
 #endif // !COST_FUNCTIONS_H

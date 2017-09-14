@@ -6,6 +6,7 @@
 #define PATH_PLANNING_HELPERS_H
 
 #include <cmath>
+#include <utility>
 #include <vector>
 #include <ostream>
 
@@ -43,15 +44,12 @@ class Polynomial {
 private:
 	std::vector<double> coeffs;
 public:
-	inline Polynomial(const std::vector<double>& coeffs)
-		: coeffs(coeffs) {}
-
-	inline Polynomial(std::vector<double>&& coeffs)
+	inline explicit Polynomial(std::vector<double> coeffs)
 		: coeffs(std::move(coeffs)) {}
 
 	inline double operator()(double x) const {
 		double value = 0;
-		int order = coeffs.size() - 1;
+		auto order = coeffs.size() - 1;
 		auto iter_r = coeffs.rbegin();
 		while (iter_r != coeffs.rend()) {
 			value += (*iter_r) * std::pow(x, order);
@@ -69,6 +67,27 @@ public:
 		return Polynomial(coeffs_d);
 	}
 };
+
+namespace AlgebraX {
+	template <size_t O>
+	inline Polynomial d(const Polynomial& poly) {
+		return d<O-1>(poly.differentiate());
+	}
+
+	template <>
+	inline Polynomial d<1>(const Polynomial& poly) {
+		return poly.differentiate();
+	}
+
+	template <>
+	inline Polynomial d<0>(const Polynomial& poly) {
+		return poly;
+	}
+
+	inline Polynomial d(const Polynomial& poly) {
+		return poly.differentiate();
+	}
+}
 
 struct Trajectory {
 	Polynomial s_poly;

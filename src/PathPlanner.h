@@ -80,7 +80,7 @@ private:
 private:
 	Polynomial jmt(const std::vector<double>& start, const std::vector<double>& end, double t);
 
-	void generate_xy_trajectory(const Trajectory& trajectory, std::vector<double>& out_x, std::vector<double>& out_y);
+	void generate_xy_trajectory(const Trajectory& trajectory, std::vector<double>& out_x, std::vector<double>& out_y, std::size_t maximum_points = 50);
 
 public:
 	PathPlanner(const std::vector<double>& map_x, const std::vector<double>& map_y, const std::vector<double>& map_s);

@@ -75,8 +75,8 @@ int main() {
 		// "42" at the start of the message means there's a websocket message event.
 		// The 4 signifies a websocket message
 		// The 2 signifies a websocket event
-		//auto sdata = string(data).substr(0, length);
-		//cout << sdata << endl;
+		auto sdata = string(data).substr(0, length);
+		cout << sdata << endl;
 		if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
 			auto s = hasData(data);
@@ -113,9 +113,9 @@ int main() {
 					vector<double> next_x_vals;
 					vector<double> next_y_vals;
 
-					planner.get_path(car_x, car_y, car_yaw,
+					planner.get_path(car_x, car_y, deg2rad(car_yaw),
 					                 car_s, car_d,
-					                 car_speed,
+					                 getMeterPerSecond(car_speed),
 					                 previous_path_x, previous_path_y,
 					                 next_x_vals, next_y_vals);
 
@@ -126,6 +126,7 @@ int main() {
 					auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
 					cout << msg << endl;
+					cout << "-------------------------------" << endl;
 
 					//this_thread::sleep_for(chrono::milliseconds(1000));
 					ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);

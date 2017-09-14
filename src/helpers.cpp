@@ -117,8 +117,8 @@ getXY(double s, double d, const std::vector<double>& maps_s, const std::vector<d
 }
 
 std::ostream& operator<< (std::ostream& s, const Polynomial& poly) {
-	s << "f(x) = ";
-	int order = static_cast<int>(poly.coeffs.size() - 1);
+	s << "f = lambda x : ";
+	auto order = poly.coeffs.size() - 1;
 	auto iter_r = poly.coeffs.rbegin();
 	while (iter_r != poly.coeffs.rend()) {
 		if (order == 1) {
@@ -126,7 +126,7 @@ std::ostream& operator<< (std::ostream& s, const Polynomial& poly) {
 		} else if (order == 0) {
 			s << (*iter_r);
 		} else {
-			s << (*iter_r) << " * x^" << order;
+			s << (*iter_r) << " * x ** " << order;
 		}
 		++iter_r;
 		--order;
