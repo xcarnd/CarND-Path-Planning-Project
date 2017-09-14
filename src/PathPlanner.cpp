@@ -58,23 +58,28 @@ namespace {
 
 }
 
-PathPlanner::PathPlanner(const std::vector<double>& map_x, const std::vector<double>& map_y, const std::vector<double>& map_s)
-	: map_x(map_x), map_y(map_y), map_s(map_s),
-	max_velocity(getMeterPerSecond(MAX_VELOCITY)),
-	planning_t(5),
-	time_step(0.5),
-	scales(5),
-	num_samples(9),
-	sample_sigma_s(SAMPLE_S_SIGMA),
-	sample_sigma_d(SAMPLE_D_SIGMA),
-	pg_interval(0.02),
-	e(std::default_random_engine())
+PathPlanner::PathPlanner(
+		const std::vector<double>& map_x, const std::vector<double>& map_y, const std::vector<double>& map_s,
+		const std::vector<double>& map_d_x, const std::vector<double>& map_d_y)
+	: map_x(map_x), map_y(map_y), map_s(map_s), map_d_x(map_d_x), map_d_y(map_d_y),
+	  max_velocity(getMeterPerSecond(MAX_VELOCITY)),
+	  planning_t(5),
+	  time_step(0.5),
+	  scales(5),
+	  num_samples(9),
+	  sample_sigma_s(SAMPLE_S_SIGMA), sample_sigma_d(SAMPLE_D_SIGMA),
+	  pg_interval(0.02),
+	  latency(0.4),
+	  e(std::default_random_engine())
 {}
 
 void
 PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, double car_d, double car_speed,
 	const std::vector<double> &path_x_vals, const std::vector<double> &path_y_vals,
 	std::vector<double> &new_path_x_vals, std::vector<double> &new_path_y_vals) {
+
+	// simulating latency by skipping the first n waypoints.
+	auto num_skip_waypoints = static_cast<int>(latency / pg_interval);
 
 	// predict the target goal after planning_t seconds
 	vector<double> start_s;
@@ -83,26 +88,49 @@ PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, do
 	double a_s;
 	double v_d;
 	double a_d;
-	if (path_x_vals.size() > 3) {
+	if (path_x_vals.size() > num_skip_waypoints) {
 		// theta passing in getFrenet is used for a reference for getting next waypoint,
 		// so the exact value of theta will not matter as long as it is pointing into the right direction.
-		vector<double> path0_sd = getFrenet(path_x_vals[0], path_y_vals[1], theta, map_x, map_y);
-		vector<double> path1_sd = getFrenet(path_x_vals[1], path_y_vals[1], theta, map_x, map_y);
+		double dx = path_x_vals[num_skip_waypoints + 1] - path_x_vals[num_skip_waypoints + 0];
+		double dy = path_y_vals[num_skip_waypoints + 1] - path_y_vals[num_skip_waypoints + 0];
+		double heading = std::atan2(dy, dx);
+		vector<double> path0_sd = getFrenet(path_x_vals[num_skip_waypoints + 0], path_y_vals[num_skip_waypoints + 0], heading, map_x, map_y);
+		vector<double> path1_sd = getFrenet(path_x_vals[num_skip_waypoints + 1], path_y_vals[num_skip_waypoints + 1], heading, map_x, map_y);
+		vector<double> path2_sd = getFrenet(path_x_vals[num_skip_waypoints + 2], path_y_vals[num_skip_waypoints + 2], heading, map_x, map_y);
 
-		double ds = path1_sd[0] - path0_sd[0];
-		double dd = path1_sd[1] - path0_sd[1];
-		double theta_in_frenet = std::atan2(ds, dd);
-		v_s = car_speed * std::sin(theta_in_frenet);
-		v_d = car_speed * std::cos(theta_in_frenet);
+		double ds10 = path1_sd[0] - path0_sd[0];
+		double dd10 = path1_sd[1] - path0_sd[1];
 
-		// ds = v_s * t + 0.5 * a_s * t ** 2 => a_s = (ds - v_s * t) * 2 / (t ** 2)
-		// dd = v_d * t + 0.5 * a_d * t ** 2 => a_d = (dd - v_d * t) * 2 / (t ** 2)
+		double ds21 = path2_sd[0] - path1_sd[0];
+		double dd21 = path2_sd[1] - path1_sd[1];
 
-		a_s = (ds - v_s * pg_interval) * 2 / std::pow(pg_interval, 2);
-		a_d = (dd - v_d * pg_interval) * 2 / std::pow(pg_interval, 2);
+		// supposed constant a, then:
+		// s1 = s0 + v0 * t + 0.5 * a * t^2 -- (1)
+		// s2 = s1 + v1 * t + 0.5 * a * t^2 -- (2)
+		// v1 = v0 + a * t                  -- (3)
+		// (2) - (1):
+		// s2 - s1 = s1 - s0 + (v1 - v0) * t
+		// (v1 - v0) = ((s2 - s1) - (s1 - s0)) / t -- (4)
+		// with (3):
+		// a = (v1 - v0) / t
+		// then substituting a back to (1), we can get v0:
+		// v0 = ((s1 - s0) - 0.5 * a * t^2) / t
+		double dvs = (ds21 - ds10) / pg_interval;
+		double dvd = (dd21 - dd10) / pg_interval;
+		a_s = dvs / pg_interval;
+		a_d = dvd / pg_interval;
 
-		start_s = { car_s, v_s, a_s };
-		start_d = { car_d, v_d, a_d };
+		v_s = (ds10 - 0.5 * a_s * pg_interval * pg_interval) / pg_interval;
+		v_d = (dd10 - 0.5 * a_d * pg_interval * pg_interval) / pg_interval;
+
+		start_s = { path0_sd[0], v_s, a_s };
+		start_d = { path0_sd[1], v_d, a_d };
+
+		// adding path points from previous path
+		for (auto i = 0; i < num_skip_waypoints; ++i) {
+			new_path_x_vals.push_back(path_x_vals[i]);
+			new_path_y_vals.push_back(path_y_vals[i]);
+		}
 	}
 	else {
 		// we are at the very beginning. how about giving the vehicle an 0.1m/s^2 s acceleration and 0m/s^2 d acceleration?
@@ -160,7 +188,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, do
 
 		std::normal_distribution<double> distribution_s(s_end, sample_sigma_s);
 		std::normal_distribution<double> distribution_d(d_end, sample_sigma_d);
-		num_samples = 0;
+		// num_samples = 0;
 		for (int j = 0; j < num_samples; ++j) {
 			vector<double> g_s = { distribution_s(e), v_s_end, a_s};
 			vector<double> g_d = { distribution_d(e), v_d_end, a_d};
@@ -191,7 +219,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, do
 	cout << "goal d: " << min_traj.d_poly(min_traj.t) << " " << d(min_traj.d_poly)(min_traj.t) << " " << d<2>(min_traj.d_poly)(min_traj.t) << endl;
 
 	// convert back to cartersian coordinate
-	generate_xy_trajectory(min_traj, new_path_x_vals, new_path_y_vals);
+	generate_xy_trajectory(min_traj, new_path_x_vals, new_path_y_vals, 50);
 }
 
 // calculating jerk minimizing trajectory

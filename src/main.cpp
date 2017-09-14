@@ -67,7 +67,7 @@ int main() {
 		map_waypoints_dy.push_back(d_y);
 	}
 
-	PathPlanner planner(map_waypoints_x, map_waypoints_y, map_waypoints_s);
+	PathPlanner planner(map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy);
 
 	h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s, &map_waypoints_dx, &map_waypoints_dy,
 			            &planner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,

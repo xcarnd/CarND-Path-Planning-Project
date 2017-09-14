@@ -31,6 +31,16 @@ private:
 	std::vector<double> map_s;
 
 	/**
+	 * map data for d_x
+	 */
+	std::vector<double> map_d_x;
+
+	/**
+	 * map data for d_y
+	 */
+	std::vector<double> map_d_y;
+
+	/**
 	 * velocity limit in m/s
 	 */
 	double max_velocity;
@@ -73,6 +83,11 @@ private:
 	double pg_interval;
 
 	/**
+	 * estimated latency
+	 */
+	double latency;
+
+	/**
 	 * random number engine
 	 */
 	std::default_random_engine e;
@@ -80,10 +95,13 @@ private:
 private:
 	Polynomial jmt(const std::vector<double>& start, const std::vector<double>& end, double t);
 
-	void generate_xy_trajectory(const Trajectory& trajectory, std::vector<double>& out_x, std::vector<double>& out_y, std::size_t maximum_points = 50);
+	void generate_xy_trajectory(const Trajectory& trajectory,
+	                            std::vector<double>& out_x, std::vector<double>& out_y, std::size_t maximum_points = 50);
 
 public:
-	PathPlanner(const std::vector<double>& map_x, const std::vector<double>& map_y, const std::vector<double>& map_s);
+	PathPlanner(const std::vector<double>& map_x, const std::vector<double>& map_y, const std::vector<double>& map_s,
+	            const std::vector<double>& map_d_x, const std::vector<double>& map_d_y);
+
 	void get_path(double car_x, double car_y, double theta,
 	              double car_s, double car_d,
 	              double car_speed,
