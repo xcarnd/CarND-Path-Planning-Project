@@ -18,6 +18,10 @@ double d_diff_cost(const Trajectory& trajectory, const std::vector<double>& goal
 
 double max_velocity_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
 
+double max_acceleration_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
+
 double max_jerk_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
+
+
 
 #endif // !COST_FUNCTIONS_H

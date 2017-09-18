@@ -13,6 +13,8 @@
 
 #include "cost_functions.h"
 
+#include "spline.h"
+
 using namespace std;
 using namespace AlgebraX;
 
@@ -20,9 +22,10 @@ namespace {
 
 	std::vector<WeightedCostFunction> ALL_COST_FUNCTIONS = {
 		{ "S", s_diff_cost, 1.0 },
-		{ "D", d_diff_cost, 1.0 },
-		{ "MAX_V", max_velocity_cost, 100.0 },
-		{ "MAX_JERK", max_jerk_cost, 100.0 }
+		{ "D", d_diff_cost, 20.0 },
+		{ "MAX_V", max_velocity_cost, 50.0 },
+		{ "MAX_ACCEL", max_acceleration_cost, 50.0 },
+		{ "MAX_JERK", max_jerk_cost, 50.0 }
 	};
 
 	class CostCalculator {
@@ -78,148 +81,92 @@ PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, do
 	const std::vector<double> &path_x_vals, const std::vector<double> &path_y_vals,
 	std::vector<double> &new_path_x_vals, std::vector<double> &new_path_y_vals) {
 
-	// simulating latency by skipping the first n waypoints.
-	auto num_skip_waypoints = static_cast<int>(latency / pg_interval);
+	int target_lane = 1;
+	double target_d = get_lane_center(target_lane);
+	double ref_speed = getMeterPerSecond(MAX_VELOCITY);
 
-	// predict the target goal after planning_t seconds
-	vector<double> start_s;
-	vector<double> start_d;
-	double v_s;
-	double a_s;
-	double v_d;
-	double a_d;
-	if (path_x_vals.size() > num_skip_waypoints) {
-		// theta passing in getFrenet is used for a reference for getting next waypoint,
-		// so the exact value of theta will not matter as long as it is pointing into the right direction.
-		double dx = path_x_vals[num_skip_waypoints + 1] - path_x_vals[num_skip_waypoints + 0];
-		double dy = path_y_vals[num_skip_waypoints + 1] - path_y_vals[num_skip_waypoints + 0];
-		double heading = std::atan2(dy, dx);
-		vector<double> path0_sd = getFrenet(path_x_vals[num_skip_waypoints + 0], path_y_vals[num_skip_waypoints + 0], heading, map_x, map_y);
-		vector<double> path1_sd = getFrenet(path_x_vals[num_skip_waypoints + 1], path_y_vals[num_skip_waypoints + 1], heading, map_x, map_y);
-		vector<double> path2_sd = getFrenet(path_x_vals[num_skip_waypoints + 2], path_y_vals[num_skip_waypoints + 2], heading, map_x, map_y);
+	vector<double> spline_x;
+	vector<double> spline_y;
+	double last_x;
+	double last_y;
+	double last_heading;
 
-		double ds10 = path1_sd[0] - path0_sd[0];
-		double dd10 = path1_sd[1] - path0_sd[1];
+	if (path_x_vals.size() >= 2) {
+		double x_n1 = path_x_vals[path_x_vals.size() - 1];
+		double x_n2 = path_x_vals[path_x_vals.size() - 2];
+		double y_n1 = path_y_vals[path_y_vals.size() - 1];
+		double y_n2 = path_y_vals[path_y_vals.size() - 2];
 
-		double ds21 = path2_sd[0] - path1_sd[0];
-		double dd21 = path2_sd[1] - path1_sd[1];
+		double heading = atan2(y_n1 - y_n2, x_n1 - x_n2);
 
-		// supposed constant a, then:
-		// s1 = s0 + v0 * t + 0.5 * a * t^2 -- (1)
-		// s2 = s1 + v1 * t + 0.5 * a * t^2 -- (2)
-		// v1 = v0 + a * t                  -- (3)
-		// (2) - (1):
-		// s2 - s1 = s1 - s0 + (v1 - v0) * t
-		// (v1 - v0) = ((s2 - s1) - (s1 - s0)) / t -- (4)
-		// with (3):
-		// a = (v1 - v0) / t
-		// then substituting a back to (1), we can get v0:
-		// v0 = ((s1 - s0) - 0.5 * a * t^2) / t
-		double dvs = (ds21 - ds10) / pg_interval;
-		double dvd = (dd21 - dd10) / pg_interval;
-		a_s = dvs / pg_interval;
-		a_d = dvd / pg_interval;
+		spline_x.push_back(x_n2);
+		spline_x.push_back(x_n1);
 
-		v_s = (ds10 - 0.5 * a_s * pg_interval * pg_interval) / pg_interval;
-		v_d = (dd10 - 0.5 * a_d * pg_interval * pg_interval) / pg_interval;
+		spline_y.push_back(y_n2);
+		spline_y.push_back(y_n1);
 
-		start_s = { path0_sd[0], v_s, a_s };
-		start_d = { path0_sd[1], v_d, a_d };
+		last_x = x_n1;
+		last_y = y_n1;
+		last_heading = heading;
+	} else {
+		double prev_x = car_x - cos(theta);
+		double prev_y = car_y - sin(theta);
+		spline_x.push_back(prev_x);
+		spline_y.push_back(prev_y);
 
-		// adding path points from previous path
-		for (auto i = 0; i < num_skip_waypoints; ++i) {
-			new_path_x_vals.push_back(path_x_vals[i]);
-			new_path_y_vals.push_back(path_y_vals[i]);
-		}
-	}
-	else {
-		// we are at the very beginning. how about giving the vehicle an 0.1m/s^2 s acceleration and 0m/s^2 d acceleration?
-		start_s = { car_s, 0.0, 0.0 };
-		start_d = { car_d, 0.0, 0.0 };
-		v_s = 0;
-		a_s = 1;
-		v_d = 0;
-		a_d = 0;
+		spline_x.push_back(car_x);
+		spline_y.push_back(car_y);
+
+		last_x = car_x;
+		last_y = car_y;
+		last_heading = theta;
 	}
 
-	cout << "start s: "<< start_s[0] << " "<< start_s[1] << " "<< start_s[2] <<endl;
-	cout << "start d: "<< start_d[0] << " "<< start_d[1] << " "<< start_d[2] <<endl;
+	auto wp_30 = getXY(car_s + 30, target_d, map_s, map_x, map_y);
+	auto wp_60 = getXY(car_s + 60, target_d, map_s, map_x, map_y);
+	auto wp_90 = getXY(car_s + 90, target_d, map_s, map_x, map_y);
 
-	// suppose the acceleration is the same in goal state
-	// so: v_t = v_0 + a * t, s_t = v_0 * t + 1/2 * a * t^2 (the same for the d component)
-	vector<Trajectory> trajectories;
-	vector<double> costs;
+	spline_x.push_back(wp_30[0]);
+	spline_x.push_back(wp_60[0]);
+	spline_x.push_back(wp_90[0]);
 
-	double a = 1;
-	for (int i = -scales; i <= scales; ++i) {
-		double t = planning_t + i * time_step;
-		double v_s_end = v_s + a * t;
-		double s_end = car_s + v_s * t + 0.5 * a * t * t;
-		if (v_s_end > max_velocity) {
-			v_s_end = max_velocity;
-			a_s = 0;
-		} else {
-			a_s = a;
-		}
+	spline_y.push_back(wp_30[1]);
+	spline_y.push_back(wp_60[1]);
+	spline_y.push_back(wp_90[1]);
 
-		double v_d_end = 0;
-		double d_end = car_d + v_d * t + 0.5 * a_d * t * t;
-
-		d_end = get_lane_center(get_lane_no(car_d));
-
-		vector<double> goal_s = { s_end, v_s_end, a_s };
-		vector<double> goal_d = { d_end, 0, 0 };
-
-		//cout << "goal s: "<< goal_s[0] << " "<< goal_s[1] << " "<< goal_s[2] <<endl;
-		//cout << "goal d: "<< goal_d[0] << " "<< goal_d[1] << " "<< goal_d[2] <<endl;
-
-		Polynomial coeffs_s = jmt(start_s, goal_s, t);
-		Polynomial coeffs_d = jmt(start_d, goal_d, t);
-
-		CostCalculator cc(goal_s, goal_d);
-
-		Trajectory traj = { coeffs_s, coeffs_d, t };
-		//cout<<traj.s_poly<<endl<<traj.d_poly<<endl<<t<<endl<<endl;
-		trajectories.push_back(traj);
-		double cost = cc(traj);
-		costs.push_back(cost);
-		//cout<<"-->"<<traj.d_poly(t)<<endl;
-		//cout<<cost<<endl<<endl;
-
-		std::normal_distribution<double> distribution_s(s_end, sample_sigma_s);
-		std::normal_distribution<double> distribution_d(d_end, sample_sigma_d);
-		// num_samples = 0;
-		for (int j = 0; j < num_samples; ++j) {
-			vector<double> g_s = { distribution_s(e), v_s_end, a_s};
-			vector<double> g_d = { distribution_d(e), v_d_end, a_d};
-
-			Polynomial coeffs_s = jmt(start_s, g_s, t);
-			Polynomial coeffs_d = jmt(start_d, g_d, t);
-
-			Trajectory traj = { coeffs_s, coeffs_d, t };
-			trajectories.push_back(traj);
-			double cost = cc(traj);
-			costs.push_back(cost);
-		}
+	for (auto i = 0; i < spline_x.size(); ++i) {
+		double x = spline_x[i] - last_x;
+		double y = spline_y[i] - last_y;
+		spline_x[i] = x * cos(-last_heading) - y * sin(-last_heading);
+		spline_y[i] = x * sin(-last_heading) + y * cos(-last_heading);
 	}
 
-	auto min_iter = min_element(costs.begin(), costs.end());
-	int min_idx = static_cast<int>(distance(costs.begin(), min_iter));
+	copy(path_x_vals.begin(), path_x_vals.end(), back_inserter(new_path_x_vals));
+	copy(path_y_vals.begin(), path_y_vals.end(), back_inserter(new_path_y_vals));
 
-	const Trajectory& min_traj = trajectories[min_idx];
-	cout << "s: " << min_traj.s_poly << endl;
-	cout << "s': " << d(min_traj.s_poly) << endl;
-	cout << "s'': " << d<2>(min_traj.s_poly) << endl;
-	cout << "d: " << min_traj.d_poly << endl;
-	cout << "d': " << d(min_traj.d_poly) << endl;
-	cout << "d': " << d<2>(min_traj.d_poly) << endl;
-	cout << "t: " << min_traj.t << endl;
-	cout << "cost: " << (*min_iter) << endl;
-	cout << "goal s: " << min_traj.s_poly(min_traj.t) << " " << d(min_traj.s_poly)(min_traj.t) << " " << d<2>(min_traj.s_poly)(min_traj.t) << endl;
-	cout << "goal d: " << min_traj.d_poly(min_traj.t) << " " << d(min_traj.d_poly)(min_traj.t) << " " << d<2>(min_traj.d_poly)(min_traj.t) << endl;
+	tk::spline s;
+	s.set_points(spline_x, spline_y);
 
-	// convert back to cartersian coordinate
-	generate_xy_trajectory(min_traj, new_path_x_vals, new_path_y_vals, 50);
+	double horizon_x = 30;
+	double horizon_y = s(horizon_x);
+	double dist = sqrt(pow(horizon_x, 2) + pow(horizon_y, 2));
+	double n = dist / (pg_interval * ref_speed);
+
+	for (auto i = 1; i <= 50 - path_x_vals.size(); ++i) {
+		double sample_x = i * (horizon_x / n);
+		double sample_y = s(sample_x);
+
+		double global_x = sample_x * cos(last_heading) - sample_y * sin(last_heading);
+		double global_y = sample_x * sin(last_heading) + sample_y * cos(last_heading);
+		global_x += last_x;
+		global_y += last_y;
+
+		new_path_x_vals.push_back(global_x);
+		new_path_y_vals.push_back(global_y);
+	}
+
+
+
 }
 
 // calculating jerk minimizing trajectory
@@ -253,7 +200,7 @@ void PathPlanner::generate_xy_trajectory(const Trajectory& trajectory,
 	std::vector<double>& out_x, std::vector<double>& out_y, std::size_t maximum_points) {
 	double t = trajectory.t;
 	double ts = 0.0 + pg_interval;
-	size_t i = 0;
+	size_t i = out_x.size();
 	while (ts < t && i < maximum_points) {
 		double s = trajectory.s_poly(ts);
 		double d = trajectory.d_poly(ts);

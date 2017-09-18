@@ -93,6 +93,8 @@ struct Trajectory {
 	Polynomial s_poly;
 	Polynomial d_poly;
 	double t;
+	std::vector<double> goal_s;
+	std::vector<double> goal_d;
 };
 
 inline double logistic(double v) {

@@ -38,7 +38,7 @@ int NextWaypoint(double x, double y, double theta, const std::vector<double>& ma
 
 	double angle = abs(theta - heading);
 
-	if (angle > pi() / 2) {
+	if (angle > pi() / 4) {
 		closestWaypoint++;
 	}
 
