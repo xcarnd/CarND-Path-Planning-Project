@@ -43,39 +43,7 @@ private:
 	/**
 	 * velocity limit in m/s
 	 */
-	double max_velocity;
-
-	/**
-	 * in what time span the planner will plan the trajectory, in seconds
-	 */
-	double planning_t;
-
-	/**
-	 * resolution for time step.
-	 */
-	double time_step;
-
-	/**
-	 * scales for t component when doing goals sampling.
-	 *
-	 * t component for goals will lie in [planning_t - scales * time_step, planning_t + scales * time_step]
-	 */
-	int scales;
-
-	/**
-	 * how many samples for one t component when doing goals sampling
-	 */
-	int num_samples;
-
-	/**
-	 * sigma for s component when doing random sampling.
-	 */
-	double sample_sigma_s;
-
-	/**
-	 * sigma for d component when doing random sampling.
-	 */
-	double sample_sigma_d;
+	const double max_velocity;
 
 	/**
 	 * time interval for path generation
@@ -91,17 +59,6 @@ private:
 	 * acceleration when keeping lane and current velocity is not at the maximum
 	 */
 	double a_keep_lane;
-
-	/**
-	 * random number engine
-	 */
-	std::default_random_engine e;
-
-private:
-	Polynomial jmt(const std::vector<double>& start, const std::vector<double>& end, double t);
-
-	void generate_xy_trajectory(const Trajectory& trajectory,
-	                            std::vector<double>& out_x, std::vector<double>& out_y, std::size_t maximum_points = 50);
 
 public:
 	PathPlanner(const std::vector<double>& map_x, const std::vector<double>& map_y, const std::vector<double>& map_s,

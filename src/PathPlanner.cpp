@@ -28,29 +28,6 @@ namespace {
 		{ "MAX_JERK", max_jerk_cost, 50.0 }
 	};
 
-	class CostCalculator {
-	private:
-		const std::vector<double>& goal_s;
-		const std::vector<double>& goal_t;
-	public:
-		inline CostCalculator(const std::vector<double>& goal_s, const std::vector<double>& goal_t)
-			: goal_s(goal_s), goal_t(goal_t) {}
-
-		inline double operator() (const Trajectory& trajectory, bool verbose = false) const {
-			double total = 0.0;
-			auto iter = ALL_COST_FUNCTIONS.begin();
-			while (iter != ALL_COST_FUNCTIONS.end()) {
-				double cost = iter->weight * iter->f(trajectory, goal_s, goal_t);
-				if (verbose) {
-					std::cout<<"Cost function "<< iter->name << ": " << cost << endl;
-				}
-				total += cost;
-				++iter;
-			}
-			return total;
-		}
-	};
-
 	inline int get_lane_no(double d) {
 		return static_cast<int>(std::floor(d / LANE_WIDTH));
 	}
@@ -66,15 +43,9 @@ PathPlanner::PathPlanner(
 		const std::vector<double>& map_d_x, const std::vector<double>& map_d_y)
 	: map_x(map_x), map_y(map_y), map_s(map_s), map_d_x(map_d_x), map_d_y(map_d_y),
 	  max_velocity(getMeterPerSecond(MAX_VELOCITY)),
-	  planning_t(5),
-	  time_step(0.5),
-	  scales(5),
-	  num_samples(9),
-	  sample_sigma_s(SAMPLE_S_SIGMA), sample_sigma_d(SAMPLE_D_SIGMA),
 	  pg_interval(0.02),
 	  ref_v(0.0),
-	  a_keep_lane(3),
-	  e(std::default_random_engine())
+	  a_keep_lane(3)
 {}
 
 void
@@ -87,8 +58,8 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 	double target_d = get_lane_center(target_lane);
 
 	ref_v += a_keep_lane * pg_interval;
-	if (ref_v > getMeterPerSecond(MAX_VELOCITY)) {
-		ref_v = getMeterPerSecond(MAX_VELOCITY);
+	if (ref_v > max_velocity) {
+		ref_v = max_velocity;
 	}
 
 	vector<double> spline_x;
@@ -178,46 +149,4 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 
 }
 
-// calculating jerk minimizing trajectory
-Polynomial PathPlanner::jmt(const std::vector<double>& start, const std::vector<double>& end, double t) {
-	vector<double> coeffs(6, 0.0);
-	coeffs[0] = start[0];
-	coeffs[1] = start[1];
-	coeffs[2] = 0.5 * start[2];
-
-	double t2 = t * t;
-	double t3 = t2 * t;
-	double t4 = t2 * t2;
-	double t5 = t3 * t2;
-	Eigen::MatrixXd M(3, 3);
-	M <<    t3,      t4,      t5,
-		3 * t2,  4 * t3,  5 * t4,
-		6 * t , 12 * t2, 20 * t3;
-	Eigen::VectorXd u(3);
-	u << end[0] - (start[0] + start[1] * t + 0.5 * start[2] * t2),
-		 end[1] - (start[1] + start[2] * t),
-		 end[2] -  start[2];
-	Eigen::VectorXd v = M.inverse() * u;
-	coeffs[3] = v[0];
-	coeffs[4] = v[1];
-	coeffs[5] = v[2];
-
-	return Polynomial(coeffs);
-}
-
-void PathPlanner::generate_xy_trajectory(const Trajectory& trajectory,
-	std::vector<double>& out_x, std::vector<double>& out_y, std::size_t maximum_points) {
-	double t = trajectory.t;
-	double ts = 0.0 + pg_interval;
-	size_t i = out_x.size();
-	while (ts < t && i < maximum_points) {
-		double s = trajectory.s_poly(ts);
-		double d = trajectory.d_poly(ts);
-		const std::vector<double>& xy = getXY(s, d, map_s, map_x, map_y);
-		out_x.push_back(xy[0]);
-		out_y.push_back(xy[1]);
-		ts += pg_interval;
-		++i;
-	}
-}
 
