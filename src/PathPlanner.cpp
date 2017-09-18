@@ -72,21 +72,28 @@ PathPlanner::PathPlanner(
 	  num_samples(9),
 	  sample_sigma_s(SAMPLE_S_SIGMA), sample_sigma_d(SAMPLE_D_SIGMA),
 	  pg_interval(0.02),
-	  latency(0.4),
+	  ref_v(0.0),
+	  a_keep_lane(3),
 	  e(std::default_random_engine())
 {}
 
 void
-PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, double car_d, double car_speed,
-	const std::vector<double> &path_x_vals, const std::vector<double> &path_y_vals,
-	std::vector<double> &new_path_x_vals, std::vector<double> &new_path_y_vals) {
-
+PathPlanner::get_path(double car_x, double car_y, double theta,
+                      double car_s, double car_d, double end_s, double end_d,
+                      double car_speed,
+                      const std::vector<double> &path_x_vals, const std::vector<double> &path_y_vals,
+                      std::vector<double> &new_path_x_vals, std::vector<double> &new_path_y_vals) {
 	int target_lane = 1;
 	double target_d = get_lane_center(target_lane);
-	double ref_speed = getMeterPerSecond(MAX_VELOCITY);
+
+	ref_v += a_keep_lane * pg_interval;
+	if (ref_v > getMeterPerSecond(MAX_VELOCITY)) {
+		ref_v = getMeterPerSecond(MAX_VELOCITY);
+	}
 
 	vector<double> spline_x;
 	vector<double> spline_y;
+	double last_s;
 	double last_x;
 	double last_y;
 	double last_heading;
@@ -105,6 +112,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, do
 		spline_y.push_back(y_n2);
 		spline_y.push_back(y_n1);
 
+		last_s = end_s;
 		last_x = x_n1;
 		last_y = y_n1;
 		last_heading = heading;
@@ -117,14 +125,15 @@ PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, do
 		spline_x.push_back(car_x);
 		spline_y.push_back(car_y);
 
+		last_s = car_s;
 		last_x = car_x;
 		last_y = car_y;
 		last_heading = theta;
 	}
 
-	auto wp_30 = getXY(car_s + 30, target_d, map_s, map_x, map_y);
-	auto wp_60 = getXY(car_s + 60, target_d, map_s, map_x, map_y);
-	auto wp_90 = getXY(car_s + 90, target_d, map_s, map_x, map_y);
+	auto wp_30 = getXY(last_s + 30, target_d, map_s, map_x, map_y);
+	auto wp_60 = getXY(last_s + 60, target_d, map_s, map_x, map_y);
+	auto wp_90 = getXY(last_s + 90, target_d, map_s, map_x, map_y);
 
 	spline_x.push_back(wp_30[0]);
 	spline_x.push_back(wp_60[0]);
@@ -150,7 +159,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta, double car_s, do
 	double horizon_x = 30;
 	double horizon_y = s(horizon_x);
 	double dist = sqrt(pow(horizon_x, 2) + pow(horizon_y, 2));
-	double n = dist / (pg_interval * ref_speed);
+	double n = dist / (pg_interval * ref_v);
 
 	for (auto i = 1; i <= 50 - path_x_vals.size(); ++i) {
 		double sample_x = i * (horizon_x / n);

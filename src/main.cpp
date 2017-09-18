@@ -114,7 +114,7 @@ int main() {
 					vector<double> next_y_vals;
 
 					planner.get_path(car_x, car_y, deg2rad(car_yaw),
-					                 car_s, car_d,
+					                 car_s, car_d, end_path_s, end_path_d,
 					                 getMeterPerSecond(car_speed),
 					                 previous_path_x, previous_path_y,
 					                 next_x_vals, next_y_vals);

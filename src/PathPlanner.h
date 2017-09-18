@@ -83,9 +83,14 @@ private:
 	double pg_interval;
 
 	/**
-	 * estimated latency
+	 * reference speed
 	 */
-	double latency;
+	double ref_v;
+
+	/**
+	 * acceleration when keeping lane and current velocity is not at the maximum
+	 */
+	double a_keep_lane;
 
 	/**
 	 * random number engine
@@ -103,7 +108,7 @@ public:
 	            const std::vector<double>& map_d_x, const std::vector<double>& map_d_y);
 
 	void get_path(double car_x, double car_y, double theta,
-	              double car_s, double car_d,
+	              double car_s, double car_d, double end_s, double end_d,
 	              double car_speed,
 	              const std::vector<double> &path_x_vals, const std::vector<double> &path_y_vals,
 	              std::vector<double> &new_path_x_vals, std::vector<double> &new_path_y_vals);
