@@ -11,6 +11,23 @@
 
 #include "helpers.h"
 
+enum BehaviorState {
+	/**
+	 * Keep Lane
+	 */
+	KL,
+
+	/**
+	 * Lane Change Left
+	 */
+	LCL,
+
+	/**
+	 * Lane Change Right
+	 */
+	LCR
+};
+
 class PathPlanner {
 
 private:
@@ -56,6 +73,16 @@ private:
 	double ref_v;
 
 	/**
+	 * current lane
+	 */
+	int current_lane;
+
+	/**
+	 * current state
+	 */
+	BehaviorState current_state;
+
+	/**
 	 * acceleration when keeping lane and current velocity is not at the maximum
 	 */
 	double a_keep_lane;
@@ -67,8 +94,10 @@ public:
 	void get_path(double car_x, double car_y, double theta,
 	              double car_s, double car_d, double end_s, double end_d,
 	              double car_speed,
+	              const std::vector<std::vector<double>>& sensor_fusion,
 	              const std::vector<double> &path_x_vals, const std::vector<double> &path_y_vals,
 	              std::vector<double> &new_path_x_vals, std::vector<double> &new_path_y_vals);
+
 };
 
 

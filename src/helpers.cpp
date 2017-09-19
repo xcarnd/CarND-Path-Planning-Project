@@ -119,10 +119,10 @@ getXY(double s, double d, const std::vector<double>& maps_s, const std::vector<d
 std::vector<double> getSDVelocity(double x, double y, double vx, double vy, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
 	double heading = atan2(vy, vx);
 	auto sd = getFrenet(x, y, heading, maps_x, maps_y);
-	double nx = x + vx;
-	double ny = y + vy;
+	double nx = x + vx * 0.02;
+	double ny = y + vy * 0.02;
 	auto sd2 = getFrenet(nx, ny, heading, maps_x, maps_y);
-	return { sd2[0] - sd[0], sd2[1] - sd[1] };
+	return { (sd2[0] - sd[0]) / 0.02, (sd2[1] - sd[1]) / 0.02 };
 }
 
 std::ostream& operator<< (std::ostream& s, const Polynomial& poly) {
