@@ -31,6 +31,8 @@ std::vector<double> getFrenet(double x, double y, double theta, const std::vecto
 // Transform from Frenet s,d coordinates to Cartesian x,y
 std::vector<double> getXY(double s, double d, const std::vector<double>& maps_s, const std::vector<double>& maps_x, const std::vector<double>& maps_y);
 
+std::vector<double> getSDVelocity(double x, double y, double vx, double vy, const std::vector<double>& maps_x, const std::vector<double>& maps_y);
+
 inline double getMeterPerSecond(double mph) {
 	return 0.44704 * mph;
 }
