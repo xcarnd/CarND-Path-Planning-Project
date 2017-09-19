@@ -67,6 +67,16 @@ int main() {
 		map_waypoints_dy.push_back(d_y);
 	}
 
+	/*
+	 * Target status: 2246.72, 2162.17, 3.76415, 15.8057, 2237.77, 6.13307, 16.2468, -0.169146
+   * Potential collision caution. Will getting too close with vehicle 10. (Distance at 5 second: -13.4236)
+   * Target status: 2275.44, 2306.88, 3.54814, 15.9762, 2385.1, 5.99368, -16.2542, -1.90506
+	 */
+/*
+	auto test1 = getSDVelocity(2246.72, 2162.17, 3.76415, 15.8057, map_waypoints_x, map_waypoints_y);
+	auto test2 = getSDVelocity(2275.44, 2306.88, 3.54814, 15.9762, map_waypoints_x, map_waypoints_y);
+ */
+
 	PathPlanner planner(map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy);
 
 	h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s, &map_waypoints_dx, &map_waypoints_dy,
@@ -76,7 +86,6 @@ int main() {
 		// The 4 signifies a websocket message
 		// The 2 signifies a websocket event
 		auto sdata = string(data).substr(0, length);
-		cout << sdata << endl;
 		if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
 			auto s = hasData(data);
@@ -125,9 +134,6 @@ int main() {
 					msgJson["next_y"] = next_y_vals;
 
 					auto msg = "42[\"control\"," + msgJson.dump() + "]";
-
-					cout << msg << endl;
-					cout << "-------------------------------" << endl;
 
 					//this_thread::sleep_for(chrono::milliseconds(1000));
 					ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);

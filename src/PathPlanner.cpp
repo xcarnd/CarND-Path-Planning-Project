@@ -43,9 +43,9 @@ namespace {
 	}
 
 	std::vector<BehaviorState> NextPossibleStates(int currentLane, BehaviorState currentState) {
+		std::vector<BehaviorState> result;
 		switch (currentState) {
 			case KL: {
-				std::vector<BehaviorState> result;
 				result.push_back(KL);
 				if (currentLane < 3) {
 					result.push_back(LCR);
@@ -62,6 +62,7 @@ namespace {
 				break;
 			}
 		}
+		return result;
 	}
 
 }
@@ -72,7 +73,7 @@ PathPlanner::PathPlanner(
 	: map_x(map_x), map_y(map_y), map_s(map_s), map_d_x(map_d_x), map_d_y(map_d_y),
 	  max_velocity(getMeterPerSecond(MAX_VELOCITY)),
 	  pg_interval(0.02),
-	  ref_v(0.0),
+	  ref_v(1.0),
 	  a_keep_lane(3),
 	  current_lane(1),
 	  current_state(KL)
@@ -145,7 +146,9 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 	vector<vector<double>> nextStateAndCost;
 	for (BehaviorState bs : next_states) {
 		if (bs == KL) {
-			auto v_ego = getSDVelocity(car_x, car_y, car_speed * cos(theta), car_speed * sin(theta), map_x, map_y);
+			// although velocity of s in frenet framework is not the same as sqrt(vx^2 + vy^2) in cartesian framework,
+			// such approximation work quite well.
+			double v_s_ego = car_speed;
 
 			// Keep Lane shall check against the vehicle in front of the ego vehicle
 			// and see if there's any possible collision. If yes, reference speed shall
@@ -153,8 +156,10 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 			double new_ref_speed = ref_v;
 			double nearest_vehicle_s = numeric_limits<double>::max();
 			int nearest_target_id = 0;
+			double too_close_dist = 0;
 			bool no_collision_risk = true;
-			for (auto vehicle_state : sensor_fusion) {
+			for (size_t idx = 0; idx < sensor_fusion.size(); ++idx) {
+				const vector<double>& vehicle_state = sensor_fusion[idx];
 				double s_target = vehicle_state[SENSOR_FUSION_S];
 				double d_target = vehicle_state[SENSOR_FUSION_D];
 
@@ -176,23 +181,28 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 				double y_target = vehicle_state[SENSOR_FUSION_Y];
 				double vx_target = vehicle_state[SENSOR_FUSION_VX];
 				double vy_target = vehicle_state[SENSOR_FUSION_VY];
-				auto v_target_frenet = getSDVelocity(x_target, y_target, vx_target, vy_target, map_x, map_y);
+				auto v_s_target = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
 
 				// so we're behind the target vehicle. check the distance between that target and us. If too close
 				// (or even we'll be in front of it), collision happens.
 				// say, 30m in s?
-				double check_dist = 30;
-				double too_close = 15;
+				double future_t = 5;
 
-				double t = check_dist / v_ego[0];
-				double new_target_s = s_target + v_target_frenet[0] * t;
-				if (new_target_s - (car_s + check_dist) < too_close) {
+				double new_target_s = s_target + v_s_target * future_t;
+				double dist_at_future = new_target_s - (car_s + v_s_ego * future_t);
+				if (dist_at_future < SAFE_DIST) {
+					cout<<"Potential collision caution. Will getting too close with vehicle "<<id_target<<". (Distance at "<<future_t<<" second: "<<dist_at_future<<")"<<endl;
+					cout<<"Target status: "
+					    <<x_target<<", "<<y_target<<", "
+					    <<vx_target<<", "<<vy_target<<", "
+					    <<s_target<<", "<<d_target<<endl;
 					// collision. We shall reduce the reference speed to be the same as the target vehicle.
 					no_collision_risk = false;
 					if (s_target < nearest_vehicle_s) {
 						nearest_vehicle_s = s_target;
 						nearest_target_id = id_target;
 						new_ref_speed = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
+						too_close_dist = dist_at_future;
 					}
 				}
 			}
@@ -201,9 +211,17 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 				if (speed > max_velocity) {
 					speed = max_velocity;
 				}
-				nextStateAndCost.emplace_back({0, KL, speed, current_lane});
+				nextStateAndCost.emplace_back(vector<double>({0, (double)KL, speed, (double)current_lane}));
 			} else {
-				nextStateAndCost.emplace_back({0, KL, new_ref_speed, current_lane});
+				double speed = ref_v;
+				// reduce to target speed, or if reducing to target speed is not enough (still getting to close), continue
+				// reducing even more.
+
+				if ((speed > new_ref_speed) || too_close_dist > SAFE_DIST / 2) {
+					speed = speed - a_keep_lane * pg_interval;
+				}
+
+				nextStateAndCost.emplace_back(vector<double>({0, (double)KL, speed, (double)current_lane}));
 			}
 		}
 		// ignore other states for now.
@@ -223,7 +241,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 			min_cost = nsac[0];
 		}
 	}
-	int target_lane = static_cast<int>(nextStateAndCost[min_idx][3]);
+	auto target_lane = static_cast<int>(nextStateAndCost[min_idx][3]);
 	double ref_speed = nextStateAndCost[min_idx][2];
 
 	double target_d = get_lane_center(target_lane);
@@ -272,6 +290,8 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 	}
 
 	ref_v = ref_speed;
+	current_state = static_cast<BehaviorState>(static_cast<int>(nextStateAndCost[min_idx][1]));
+	current_lane = static_cast<int>(nextStateAndCost[min_idx][3]);
 
 }
 
