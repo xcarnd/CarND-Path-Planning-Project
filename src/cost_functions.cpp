@@ -4,93 +4,36 @@
 
 using namespace std;
 
-using namespace AlgebraX;
-
-double s_diff_cost(const Trajectory & trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d) {
-
-	const Polynomial& poly_s = trajectory.s_poly;
-	const Polynomial& poly_s_d1 = d(poly_s);
-	const Polynomial& poly_s_d2 = d(poly_s_d1);
-
-	double t = trajectory.t;
-
-	double cost = 0.0;
-
-	vector<double> actual = { poly_s(t), poly_s_d1(t), poly_s_d2(t) };
-	
-	for (std::size_t i = 0; i < goal_s.size(); ++i) {
-		double diff = std::abs(actual[i] - goal_s[i]);
-		cost += logistic(diff / SAMPLE_S_SIGMA);
-	}
-
-	return cost;
+/**
+ * Penalizes low speeds
+ */
+double velocity_cost(double target_speed, int lane_delta,
+                     const std::vector<std::vector<double>>& sensor_fusion,
+                     BehaviorState state) {
+	return logistic(abs(target_speed - getMeterPerSecond(MAX_VELOCITY)));
 }
 
-double d_diff_cost(const Trajectory & trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d) {
-
-	const Polynomial& poly_d = trajectory.d_poly;
-	const Polynomial& poly_d_d1 = d(poly_d);
-	const Polynomial& poly_d_d2 = d(poly_d_d1);
-
-	double t = trajectory.t;
-
-	double cost = 0.0;
-
-	vector<double> actual = { poly_d(t), poly_d_d1(t), poly_d_d2(t) };
-
-	for (std::size_t i = 0; i < goal_d.size(); ++i) {
-		double diff = std::abs(actual[i] - goal_d[i]);
-		cost += logistic(diff / SAMPLE_D_SIGMA);
-	}
-
-	return cost;
+/**
+ * Penalizes lane change
+ */
+double lane_change_cost(double target_speed, int lane_delta,
+                        const std::vector<std::vector<double>>& sensor_fusion,
+                        BehaviorState state) {
+	return lane_delta == 0 ? 0 : 1;
 }
 
-double max_velocity_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d) {
-	const double limit = getMeterPerSecond(MAX_VELOCITY);
-	const Polynomial& poly_s_v = d(trajectory.s_poly);
-	const Polynomial& poly_d_v = d(trajectory.d_poly);
-	double ts = trajectory.t / 100;
-	double t = 0;
-	for (int i = 0; i < 100; ++i) {
-		double vs = poly_s_v(t);
-		double vd = poly_d_v(t);
-		double v = std::sqrt(std::pow(vs, 2) + std::pow(vd, 2));
-		if (v > limit) {
-			return 1;
-		}
-		t += ts;
+/**
+ * Penalizes collisions
+ *
+ * Note: if the passing in BehaviorState is KL, it is supposed that
+ * no collisions will happen since the trajectory for KL has already
+ * considered avoiding collision at its best efforts.
+ */
+double collision_cost(double target_speed, int lane_delta,
+                      const std::vector<std::vector<double>>& sensor_fusion,
+                      BehaviorState state) {
+	if (state == KL) {
+		return 0.0;
 	}
-	return 0;
-}
-
-double max_acceleration_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d) {
-	const Polynomial& poly_s_a = d<2>(trajectory.s_poly);
-	const Polynomial& poly_d_a = d<2>(trajectory.d_poly);
-	double ts = trajectory.t / 100;
-	double t = 0;
-	for (int i = 0; i < 100; ++i) {
-		double as = poly_s_a(t);
-		double ad = poly_d_a(t);
-		double a = std::sqrt(std::pow(as, 2) + std::pow(ad, 2));
-		if (a > MAX_ACCELERATION) {
-			return 1;
-		}
-		t += ts;
-	}
-	return 0;
-}
-
-double max_jerk_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d) {
-	const Polynomial& poly_jerk_s = d<3>(trajectory.s_poly);
-	double ts = trajectory.t / 100;
-	double t = 0;
-	for (int i = 0; i < 100; ++i) {
-		double jerk = abs(poly_jerk_s(t));
-		if (jerk > MAX_JERK) {
-			return 1;
-		}
-		t += ts;
-	}
-	return 0;
+	return 0.0;
 }

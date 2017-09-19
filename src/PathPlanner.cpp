@@ -14,17 +14,25 @@
 #include "spline.h"
 
 using namespace std;
-using namespace AlgebraX;
 
 namespace {
 
 	std::vector<WeightedCostFunction> ALL_COST_FUNCTIONS = {
-		{ "S", s_diff_cost, 1.0 },
-		{ "D", d_diff_cost, 20.0 },
-		{ "MAX_V", max_velocity_cost, 50.0 },
-		{ "MAX_ACCEL", max_acceleration_cost, 50.0 },
-		{ "MAX_JERK", max_jerk_cost, 50.0 }
+		{ velocity_cost,    10.0   },
+		{ lane_change_cost, 8.0   },
+		{ collision_cost,   100.0 }
 	};
+
+	double get_total_cost(
+			double target_speed, int lane_delta,
+			const std::vector<std::vector<double>>& sensor_fusion,
+			BehaviorState state) {
+		double total = 0.0;
+		for (WeightedCostFunction wcf : ALL_COST_FUNCTIONS) {
+			total += wcf.weight * wcf.cost_function(target_speed, lane_delta, sensor_fusion, state);
+		}
+		return total;
+	}
 
 	constexpr size_t SENSOR_FUSION_ID = 0;
 	constexpr size_t SENSOR_FUSION_X  = 1;
@@ -44,23 +52,12 @@ namespace {
 
 	std::vector<BehaviorState> NextPossibleStates(int currentLane, BehaviorState currentState) {
 		std::vector<BehaviorState> result;
-		switch (currentState) {
-			case KL: {
-				result.push_back(KL);
-				if (currentLane < 3) {
-					result.push_back(LCR);
-				}
-				if (currentLane > 1) {
-					result.push_back(LCL);
-				}
-				break;
-			}
-			case LCL: {
-				break;
-			}
-			case LCR: {
-				break;
-			}
+		result.push_back(KL);
+		if (currentLane < 2) {
+			result.push_back(LCR);
+		}
+		if (currentLane > 0) {
+			result.push_back(LCL);
 		}
 		return result;
 	}
@@ -74,7 +71,7 @@ PathPlanner::PathPlanner(
 	  max_velocity(getMeterPerSecond(MAX_VELOCITY)),
 	  pg_interval(0.02),
 	  ref_v(1.0),
-	  a_keep_lane(3),
+	  accel(3),
 	  current_lane(1),
 	  current_state(KL)
 {}
@@ -147,7 +144,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 	for (BehaviorState bs : next_states) {
 		if (bs == KL) {
 			// although velocity of s in frenet framework is not the same as sqrt(vx^2 + vy^2) in cartesian framework,
-			// such approximation work quite well.
+			// such approximation work well.
 			double v_s_ego = car_speed;
 
 			// Keep Lane shall check against the vehicle in front of the ego vehicle
@@ -191,11 +188,11 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 				double new_target_s = s_target + v_s_target * future_t;
 				double dist_at_future = new_target_s - (car_s + v_s_ego * future_t);
 				if (dist_at_future < SAFE_DIST) {
-					cout<<"Potential collision caution. Will getting too close with vehicle "<<id_target<<". (Distance at "<<future_t<<" second: "<<dist_at_future<<")"<<endl;
-					cout<<"Target status: "
-					    <<x_target<<", "<<y_target<<", "
-					    <<vx_target<<", "<<vy_target<<", "
-					    <<s_target<<", "<<d_target<<endl;
+//					cout<<"Potential collision caution. Will getting too close with vehicle "<<id_target<<". (Distance at "<<future_t<<" second: "<<dist_at_future<<")"<<endl;
+//					cout<<"Target status: "
+//					    <<x_target<<", "<<y_target<<", "
+//					    <<vx_target<<", "<<vy_target<<", "
+//					    <<s_target<<", "<<d_target<<endl;
 					// collision. We shall reduce the reference speed to be the same as the target vehicle.
 					no_collision_risk = false;
 					if (s_target < nearest_vehicle_s) {
@@ -207,40 +204,68 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 				}
 			}
 			if (no_collision_risk) {
-				double speed = ref_v + a_keep_lane * pg_interval;
+				double speed = ref_v + accel * pg_interval;
 				if (speed > max_velocity) {
 					speed = max_velocity;
 				}
-				nextStateAndCost.emplace_back(vector<double>({0, (double)KL, speed, (double)current_lane}));
+				nextStateAndCost.emplace_back(vector<double>(
+						{get_total_cost(speed, 0, sensor_fusion, KL), (double)KL, speed, (double)current_lane}
+				));
 			} else {
 				double speed = ref_v;
 				// reduce to target speed, or if reducing to target speed is not enough (still getting to close), continue
 				// reducing even more.
 
 				if ((speed > new_ref_speed) || too_close_dist > SAFE_DIST / 2) {
-					speed = speed - a_keep_lane * pg_interval;
+					speed = speed - accel * pg_interval;
 				}
 
-				nextStateAndCost.emplace_back(vector<double>({0, (double)KL, speed, (double)current_lane}));
+				nextStateAndCost.emplace_back(vector<double>(
+						{get_total_cost(speed, 0, sensor_fusion, KL), (double)KL, speed, (double)current_lane}));
 			}
+		} else if (bs == LCL || bs == LCR){
+			// LCL / LCR are quite the same except for the new lane
+			int new_lane;
+			if (bs == LCL) {
+				new_lane = current_lane - 1;
+			} else {
+				new_lane = current_lane + 1;
+			}
+
+			// lane change is supposed to be able to driving at higher speed
+			// (otherwise it is of no good to perform lane shifting.
+			double speed = ref_v + accel * pg_interval;
+			if (speed > max_velocity) {
+				speed = max_velocity;
+			}
+
+			nextStateAndCost.emplace_back(vector<double>(
+					{get_total_cost(max_velocity, new_lane - current_lane, sensor_fusion, bs), (double)bs, speed, (double)new_lane}));
+			// if we're performing lane change with some v_d, we will then know how long it will take to
+			// perform the lane shifting.
+			// improvement: may be we can use jmt to pick one optimal lane change trajectory?
+			// fix it to be 1m/s
+
 		}
-		// ignore other states for now.
 	}
 
 //	double target_d = get_lane_center(current_lane);
-//	double ref_speed = ref_v + a_keep_lane * pg_interval;
+//	double ref_speed = ref_v + accel * pg_interval;
 //	if (ref_speed > max_velocity) {
 //		ref_speed = max_velocity;
 //	}
 	double min_cost = numeric_limits<double>::max();
 	size_t min_idx = 0;
+	BehaviorState min_state;
 	for (size_t i = 0; i < nextStateAndCost.size(); ++i) {
 		auto nsac = nextStateAndCost[i];
 		if (nsac[0] < min_cost) {
 			min_idx = i;
 			min_cost = nsac[0];
+			min_state = static_cast<BehaviorState>(static_cast<int>(nsac[1]));
 		}
 	}
+	cout<<"Next behavior: "<<min_state<<", cost: "<<min_cost<<endl;
 	auto target_lane = static_cast<int>(nextStateAndCost[min_idx][3]);
 	double ref_speed = nextStateAndCost[min_idx][2];
 

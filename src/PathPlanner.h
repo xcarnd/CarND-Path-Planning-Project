@@ -85,7 +85,7 @@ private:
 	/**
 	 * acceleration when keeping lane and current velocity is not at the maximum
 	 */
-	double a_keep_lane;
+	double accel;
 
 public:
 	PathPlanner(const std::vector<double>& map_x, const std::vector<double>& map_y, const std::vector<double>& map_s,

@@ -124,24 +124,3 @@ std::vector<double> getSDVelocity(double x, double y, double vx, double vy, cons
 	auto sd2 = getFrenet(nx, ny, heading, maps_x, maps_y);
 	return { (sd2[0] - sd[0]) / 0.02, (sd2[1] - sd[1]) / 0.02 };
 }
-
-std::ostream& operator<< (std::ostream& s, const Polynomial& poly) {
-	s << "f = lambda x : ";
-	auto order = poly.coeffs.size() - 1;
-	auto iter_r = poly.coeffs.rbegin();
-	while (iter_r != poly.coeffs.rend()) {
-		if (order == 1) {
-			s << (*iter_r) << " * x";
-		} else if (order == 0) {
-			s << (*iter_r);
-		} else {
-			s << (*iter_r) << " * x ** " << order;
-		}
-		++iter_r;
-		--order;
-		if (iter_r != poly.coeffs.rend()) {
-			s << " + ";
-		}
-	}
-	return s;
-}

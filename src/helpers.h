@@ -41,64 +41,6 @@ inline double getMilePerHour(double mps) {
 	return 2.236936 * mps;
 }
 
-class Polynomial {
-	friend std::ostream& operator<<(std::ostream& s, const Polynomial& poly);
-private:
-	std::vector<double> coeffs;
-public:
-	inline explicit Polynomial(std::vector<double> coeffs)
-		: coeffs(std::move(coeffs)) {}
-
-	inline double operator()(double x) const {
-		double value = 0;
-		auto order = coeffs.size() - 1;
-		auto iter_r = coeffs.rbegin();
-		while (iter_r != coeffs.rend()) {
-			value += (*iter_r) * std::pow(x, order);
-			--order;
-			++iter_r;
-		}
-		return value;
-	}
-
-	inline Polynomial differentiate() const {
-		std::vector<double> coeffs_d;
-		for (std::size_t i = 1; i < coeffs.size(); ++i) {
-			coeffs_d.push_back(coeffs[i] * i);
-		}
-		return Polynomial(coeffs_d);
-	}
-};
-
-namespace AlgebraX {
-	template <size_t O>
-	inline Polynomial d(const Polynomial& poly) {
-		return d<O-1>(poly.differentiate());
-	}
-
-	template <>
-	inline Polynomial d<1>(const Polynomial& poly) {
-		return poly.differentiate();
-	}
-
-	template <>
-	inline Polynomial d<0>(const Polynomial& poly) {
-		return poly;
-	}
-
-	inline Polynomial d(const Polynomial& poly) {
-		return poly.differentiate();
-	}
-}
-
-struct Trajectory {
-	Polynomial s_poly;
-	Polynomial d_poly;
-	double t;
-	std::vector<double> goal_s;
-	std::vector<double> goal_d;
-};
-
 inline double logistic(double v) {
 	return 2.0 / (1 + std::exp(-v)) - 1.0;
 }

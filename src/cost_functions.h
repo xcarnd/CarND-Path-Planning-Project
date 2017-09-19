@@ -3,25 +3,27 @@
 
 #include <vector>
 #include "helpers.h"
+#include "PathPlanner.h"
 
-typedef double (*CostFunction)(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
+typedef double (*CostFunction)(double target_speed, int lane_delta,
+                               const std::vector<std::vector<double>>& sensor_fusion,
+                               BehaviorState state);
 
 struct WeightedCostFunction {
-	std::string name;
-	CostFunction f;
+	CostFunction cost_function;
 	double weight;
 };
 
-double s_diff_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
+double velocity_cost(double target_speed, int lane_delta,
+                     const std::vector<std::vector<double>>& sensor_fusion,
+                     BehaviorState state);
 
-double d_diff_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
+double lane_change_cost(double target_speed, int lane_delta,
+                        const std::vector<std::vector<double>>& sensor_fusion,
+                        BehaviorState state);
 
-double max_velocity_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
-
-double max_acceleration_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
-
-double max_jerk_cost(const Trajectory& trajectory, const std::vector<double>& goal_s, const std::vector<double>& goal_d);
-
-
+double collision_cost(double target_speed, int lane_delta,
+                      const std::vector<std::vector<double>>& sensor_fusion,
+                      BehaviorState state);
 
 #endif // !COST_FUNCTIONS_H
