@@ -5,25 +5,22 @@
 #include "helpers.h"
 #include "PathPlanner.h"
 
-typedef double (*CostFunction)(double target_speed, int lane_delta,
-                               const std::vector<std::vector<double>>& sensor_fusion,
-                               BehaviorState state);
+typedef double (*CostFunction)(double start_s, double start_speed, int start_lane,
+                               double end_s, double end_speed, int end_lane,
+                               const std::vector<std::vector<double>> &sensor_fusion);
 
 struct WeightedCostFunction {
 	CostFunction cost_function;
 	double weight;
 };
 
-double velocity_cost(double target_speed, int lane_delta,
-                     const std::vector<std::vector<double>>& sensor_fusion,
-                     BehaviorState state);
+double velocity_cost(double start_s, double start_speed, int start_lane, double end_s, double end_speed, int end_lane,
+                     const std::vector<std::vector<double>> &sensor_fusion);
 
-double lane_change_cost(double target_speed, int lane_delta,
-                        const std::vector<std::vector<double>>& sensor_fusion,
-                        BehaviorState state);
+double lane_change_cost(double start_s, double start_speed, int start_lane, double end_s, double end_speed, int end_lane,
+                        const std::vector<std::vector<double>> &sensor_fusion);
 
-double collision_cost(double target_speed, int lane_delta,
-                      const std::vector<std::vector<double>>& sensor_fusion,
-                      BehaviorState state);
+double safe_distance_cost(double start_s, double start_speed, int start_lane, double end_s, double end_speed, int end_lane,
+                          const std::vector<std::vector<double>> &sensor_fusion);
 
 #endif // !COST_FUNCTIONS_H

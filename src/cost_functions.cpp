@@ -7,33 +7,26 @@ using namespace std;
 /**
  * Penalizes low speeds
  */
-double velocity_cost(double target_speed, int lane_delta,
-                     const std::vector<std::vector<double>>& sensor_fusion,
-                     BehaviorState state) {
-	return logistic(abs(target_speed - getMeterPerSecond(MAX_VELOCITY)));
+double velocity_cost(double start_s, double start_speed, int start_lane,
+                     double end_s, double end_speed, int end_lane,
+                     const std::vector<std::vector<double>> &sensor_fusion) {
+	return logistic(abs(end_speed - getMeterPerSecond(MAX_VELOCITY)));
 }
 
 /**
  * Penalizes lane change
  */
-double lane_change_cost(double target_speed, int lane_delta,
-                        const std::vector<std::vector<double>>& sensor_fusion,
-                        BehaviorState state) {
-	return lane_delta == 0 ? 0 : 1;
+double lane_change_cost(double start_s, double start_speed, int start_lane,
+                        double end_s, double end_speed, int end_lane,
+                        const std::vector<std::vector<double>> &sensor_fusion) {
+	return start_lane != end_lane ? 1.0 : 0.0;
 }
 
 /**
- * Penalizes collisions
- *
- * Note: if the passing in BehaviorState is KL, it is supposed that
- * no collisions will happen since the trajectory for KL has already
- * considered avoiding collision at its best efforts.
+ * Penalizes unsafe distance (or even collision)
  */
-double collision_cost(double target_speed, int lane_delta,
-                      const std::vector<std::vector<double>>& sensor_fusion,
-                      BehaviorState state) {
-	if (state == KL) {
-		return 0.0;
-	}
+double safe_distance_cost(double start_s, double start_speed, int start_lane,
+                          double end_s, double end_speed, int end_lane,
+                          const std::vector<std::vector<double>> &sensor_fusion) {
 	return 0.0;
 }
