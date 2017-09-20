@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 #include <ostream>
+#include "consts.h"
 
 // For converting back and forth between radians and degrees.
 inline constexpr double pi() { return M_PI; }
@@ -45,5 +46,14 @@ inline double logistic(double v) {
 	return 2.0 / (1 + std::exp(-v)) - 1.0;
 }
 
+inline int get_lane_no(double d) {
+	return static_cast<int>(std::floor(d / LANE_WIDTH));
+}
+
+inline double get_lane_center(int lane) {
+	return lane * LANE_WIDTH + LANE_WIDTH / 2.0;
+}
+
+std::vector<int> GetNearestLeadingVehicleInLane(const std::vector<std::vector<double>>& sensor_fusion, double ego_s, int lane);
 
 #endif //PATH_PLANNING_HELPERS_H

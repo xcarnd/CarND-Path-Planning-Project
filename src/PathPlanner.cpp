@@ -18,36 +18,22 @@ using namespace std;
 namespace {
 
 	std::vector<WeightedCostFunction> ALL_COST_FUNCTIONS = {
-		{ velocity_cost,    10.0   },
-		{ lane_change_cost, 8.0   },
-		{ collision_cost,   100.0 }
+		{ max_allowed_velocity_cost,  20.0   },
+		{ lane_change_cost,           5.0    },
+//		{ high_traffic_cost,          2.0    },
+		{ safe_distance_cost,         1000.0 }
 	};
 
-	double get_total_cost(
-			double target_speed, int lane_delta,
-			const std::vector<std::vector<double>>& sensor_fusion,
-			BehaviorState state) {
+	double get_total_cost(double start_s, double start_speed, int start_lane,
+	                      double end_s, double end_speed, int end_lane,
+	                      const std::vector<std::vector<double>> &sensor_fusion) {
 		double total = 0.0;
 		for (WeightedCostFunction wcf : ALL_COST_FUNCTIONS) {
-			total += wcf.weight * wcf.cost_function(target_speed, lane_delta, sensor_fusion, state);
+			total += wcf.weight * wcf.cost_function(start_s, start_speed, start_lane,
+			                                        end_s, end_speed, end_lane,
+			                                        sensor_fusion);
 		}
 		return total;
-	}
-
-	constexpr size_t SENSOR_FUSION_ID = 0;
-	constexpr size_t SENSOR_FUSION_X  = 1;
-	constexpr size_t SENSOR_FUSION_Y  = 2;
-	constexpr size_t SENSOR_FUSION_VX = 3;
-	constexpr size_t SENSOR_FUSION_VY = 4;
-	constexpr size_t SENSOR_FUSION_S  = 5;
-	constexpr size_t SENSOR_FUSION_D  = 6;
-
-	inline int get_lane_no(double d) {
-		return static_cast<int>(std::floor(d / LANE_WIDTH));
-	}
-
-	inline double get_lane_center(int lane) {
-		return lane * LANE_WIDTH + LANE_WIDTH / 2.0;
 	}
 
 	std::vector<BehaviorState> NextPossibleStates(int currentLane, BehaviorState currentState) {
@@ -70,9 +56,8 @@ PathPlanner::PathPlanner(
 	: map_x(map_x), map_y(map_y), map_s(map_s), map_d_x(map_d_x), map_d_y(map_d_y),
 	  max_velocity(getMeterPerSecond(MAX_VELOCITY)),
 	  pg_interval(0.02),
-	  ref_v(1.0),
+	  ref_v(0.0),
 	  accel(3),
-	  current_lane(1),
 	  current_state(KL)
 {}
 
@@ -86,10 +71,11 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 
 	vector<double> spline_x;
 	vector<double> spline_y;
-	double last_s;
-	double last_x;
-	double last_y;
-	double last_heading;
+	double ref_s;
+	double ref_x;
+	double ref_y;
+	double ref_heading;
+	int current_lane = get_lane_no(car_d);
 
 	if (path_x_vals.size() >= 2) {
 		double x_n1 = path_x_vals[path_x_vals.size() - 1];
@@ -105,10 +91,10 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 		spline_y.push_back(y_n2);
 		spline_y.push_back(y_n1);
 
-		last_s = end_s;
-		last_x = x_n1;
-		last_y = y_n1;
-		last_heading = heading;
+		ref_s = end_s;
+		ref_x = x_n1;
+		ref_y = y_n1;
+		ref_heading = heading;
 	} else {
 		double prev_x = car_x - cos(theta);
 		double prev_y = car_y - sin(theta);
@@ -118,12 +104,10 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 		spline_x.push_back(car_x);
 		spline_y.push_back(car_y);
 
-		last_s = car_s;
-		last_x = car_x;
-		last_y = car_y;
-		last_heading = theta;
-
-		current_lane = get_lane_no(car_d);
+		ref_s = car_s;
+		ref_x = car_x;
+		ref_y = car_y;
+		ref_heading = theta;
 	}
 
 	auto next_states = NextPossibleStates(current_lane, current_state);
@@ -145,34 +129,20 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 		if (bs == KL) {
 			// although velocity of s in frenet framework is not the same as sqrt(vx^2 + vy^2) in cartesian framework,
 			// such approximation work well.
-			double v_s_ego = car_speed;
+			double future_t = 5;
+			double new_s = (car_s + car_speed * future_t);
 
 			// Keep Lane shall check against the vehicle in front of the ego vehicle
 			// and see if there's any possible collision. If yes, reference speed shall
 			// be reduced.
 			double new_ref_speed = ref_v;
-			double nearest_vehicle_s = numeric_limits<double>::max();
-			int nearest_target_id = 0;
-			double too_close_dist = 0;
+			double dist_to_nearest = numeric_limits<double>::max();
 			bool no_collision_risk = true;
-			for (size_t idx = 0; idx < sensor_fusion.size(); ++idx) {
+			int idx = GetNearestLeadingVehicleInLane(sensor_fusion, car_s, current_lane)[0];
+			if (idx > -1) {
 				const vector<double>& vehicle_state = sensor_fusion[idx];
 				double s_target = vehicle_state[SENSOR_FUSION_S];
 				double d_target = vehicle_state[SENSOR_FUSION_D];
-
-				int at_lane = get_lane_no(d_target);
-				if (at_lane != current_lane) {
-					// not in the same lane as the ego vehicle. safe to ignore
-					continue;
-				}
-				if (s_target < car_s) {
-					// ignore vehicles behind the ego vehicle
-					continue;
-				}
-				if (s_target > nearest_vehicle_s) {
-					// ignore vehicles not close to the ego vehicle
-					continue;
-				}
 				double id_target = vehicle_state[SENSOR_FUSION_ID];
 				double x_target = vehicle_state[SENSOR_FUSION_X];
 				double y_target = vehicle_state[SENSOR_FUSION_Y];
@@ -183,11 +153,9 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 				// so we're behind the target vehicle. check the distance between that target and us. If too close
 				// (or even we'll be in front of it), collision happens.
 				// say, 30m in s?
-				double future_t = 5;
-
 				double new_target_s = s_target + v_s_target * future_t;
-				double dist_at_future = new_target_s - (car_s + v_s_ego * future_t);
-				if (dist_at_future < SAFE_DIST) {
+				dist_to_nearest = new_target_s - new_s;
+				if (dist_to_nearest < SAFE_DIST) {
 //					cout<<"Potential collision caution. Will getting too close with vehicle "<<id_target<<". (Distance at "<<future_t<<" second: "<<dist_at_future<<")"<<endl;
 //					cout<<"Target status: "
 //					    <<x_target<<", "<<y_target<<", "
@@ -195,12 +163,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 //					    <<s_target<<", "<<d_target<<endl;
 					// collision. We shall reduce the reference speed to be the same as the target vehicle.
 					no_collision_risk = false;
-					if (s_target < nearest_vehicle_s) {
-						nearest_vehicle_s = s_target;
-						nearest_target_id = id_target;
-						new_ref_speed = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
-						too_close_dist = dist_at_future;
-					}
+					new_ref_speed = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
 				}
 			}
 			if (no_collision_risk) {
@@ -209,19 +172,19 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 					speed = max_velocity;
 				}
 				nextStateAndCost.emplace_back(vector<double>(
-						{get_total_cost(speed, 0, sensor_fusion, KL), (double)KL, speed, (double)current_lane}
+						{get_total_cost(car_s, car_speed, current_lane, new_s, new_ref_speed, current_lane, sensor_fusion), (double)KL, speed, (double)current_lane}
 				));
 			} else {
 				double speed = ref_v;
 				// reduce to target speed, or if reducing to target speed is not enough (still getting to close), continue
 				// reducing even more.
 
-				if ((speed > new_ref_speed) || too_close_dist > SAFE_DIST / 2) {
-					speed = speed - accel * pg_interval;
+				if (dist_to_nearest < SAFE_DIST / 2) {
+					speed = speed - 2 * accel * pg_interval;
 				}
 
 				nextStateAndCost.emplace_back(vector<double>(
-						{get_total_cost(speed, 0, sensor_fusion, KL), (double)KL, speed, (double)current_lane}));
+						{get_total_cost(car_s, car_speed, current_lane, new_s, new_ref_speed, current_lane, sensor_fusion), (double)KL, speed, (double)current_lane}));
 			}
 		} else if (bs == LCL || bs == LCR){
 			// LCL / LCR are quite the same except for the new lane
@@ -234,14 +197,19 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 
 			// lane change is supposed to be able to driving at higher speed
 			// (otherwise it is of no good to perform lane shifting.
+			// the highest possible speed depends on the traffic of the target lane:
+			// if in the target lane, no vehicles is within, say, 30m of the ego vehicle
+
 			double speed = ref_v + accel * pg_interval;
 			if (speed > max_velocity) {
 				speed = max_velocity;
 			}
+			double future_t = 5;
+			double new_s = (car_s + car_speed * future_t);
 
 			nextStateAndCost.emplace_back(vector<double>(
-					{get_total_cost(max_velocity, new_lane - current_lane, sensor_fusion, bs), (double)bs, speed, (double)new_lane}));
-			// if we're performing lane change with some v_d, we will then know how long it will take to
+					{get_total_cost(car_s, car_speed, current_lane, new_s, speed, new_lane, sensor_fusion), (double)bs, speed, (double)new_lane}));
+//			// if we're performing lane change with some v_d, we will then know how long it will take to
 			// perform the lane shifting.
 			// improvement: may be we can use jmt to pick one optimal lane change trajectory?
 			// fix it to be 1m/s
@@ -256,14 +224,17 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 //	}
 	double min_cost = numeric_limits<double>::max();
 	size_t min_idx = 0;
-	BehaviorState min_state;
+	BehaviorState min_state = KL;
 	for (size_t i = 0; i < nextStateAndCost.size(); ++i) {
 		auto nsac = nextStateAndCost[i];
-		if (nsac[0] < min_cost) {
+		BehaviorState state = static_cast<BehaviorState>(static_cast<int>(nsac[1]));
+		double cost = nsac[0];
+		if (cost < min_cost) {
 			min_idx = i;
-			min_cost = nsac[0];
-			min_state = static_cast<BehaviorState>(static_cast<int>(nsac[1]));
+			min_cost = cost;
+			min_state = state;
 		}
+		cout<<state<<": "<<cost<<", ";
 	}
 	cout<<"Next behavior: "<<min_state<<", cost: "<<min_cost<<endl;
 	auto target_lane = static_cast<int>(nextStateAndCost[min_idx][3]);
@@ -271,9 +242,9 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 
 	double target_d = get_lane_center(target_lane);
 
-	auto wp_30 = getXY(last_s + 30, target_d, map_s, map_x, map_y);
-	auto wp_60 = getXY(last_s + 60, target_d, map_s, map_x, map_y);
-	auto wp_90 = getXY(last_s + 90, target_d, map_s, map_x, map_y);
+	auto wp_30 = getXY(ref_s + 30, target_d, map_s, map_x, map_y);
+	auto wp_60 = getXY(ref_s + 60, target_d, map_s, map_x, map_y);
+	auto wp_90 = getXY(ref_s + 90, target_d, map_s, map_x, map_y);
 
 	spline_x.push_back(wp_30[0]);
 	spline_x.push_back(wp_60[0]);
@@ -284,10 +255,10 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 	spline_y.push_back(wp_90[1]);
 
 	for (auto i = 0; i < spline_x.size(); ++i) {
-		double x = spline_x[i] - last_x;
-		double y = spline_y[i] - last_y;
-		spline_x[i] = x * cos(-last_heading) - y * sin(-last_heading);
-		spline_y[i] = x * sin(-last_heading) + y * cos(-last_heading);
+		double x = spline_x[i] - ref_x;
+		double y = spline_y[i] - ref_y;
+		spline_x[i] = x * cos(-ref_heading) - y * sin(-ref_heading);
+		spline_y[i] = x * sin(-ref_heading) + y * cos(-ref_heading);
 	}
 
 	copy(path_x_vals.begin(), path_x_vals.end(), back_inserter(new_path_x_vals));
@@ -299,22 +270,22 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 	double horizon_x = 30;
 	double horizon_y = s(horizon_x);
 	double dist = sqrt(pow(horizon_x, 2) + pow(horizon_y, 2));
-	double n = dist / (pg_interval * ref_v);
+	double n = dist / (pg_interval * ref_speed);
 
 	for (auto i = 1; i <= 50 - path_x_vals.size(); ++i) {
 		double sample_x = i * (horizon_x / n);
 		double sample_y = s(sample_x);
 
-		double global_x = sample_x * cos(last_heading) - sample_y * sin(last_heading);
-		double global_y = sample_x * sin(last_heading) + sample_y * cos(last_heading);
-		global_x += last_x;
-		global_y += last_y;
+		double global_x = sample_x * cos(ref_heading) - sample_y * sin(ref_heading);
+		double global_y = sample_x * sin(ref_heading) + sample_y * cos(ref_heading);
+		global_x += ref_x;
+		global_y += ref_y;
 
 		new_path_x_vals.push_back(global_x);
 		new_path_y_vals.push_back(global_y);
 	}
 
-	ref_v = ref_speed;
+	this->ref_v = ref_speed;
 	current_state = static_cast<BehaviorState>(static_cast<int>(nextStateAndCost[min_idx][1]));
 	current_lane = static_cast<int>(nextStateAndCost[min_idx][3]);
 

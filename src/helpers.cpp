@@ -4,6 +4,8 @@
 
 #include "helpers.h"
 #include <cmath>
+#include <numeric>
+#include <limits>
 
 using namespace std;
 
@@ -123,4 +125,35 @@ std::vector<double> getSDVelocity(double x, double y, double vx, double vy, cons
 	double ny = y + vy * 0.02;
 	auto sd2 = getFrenet(nx, ny, heading, maps_x, maps_y);
 	return { (sd2[0] - sd[0]) / 0.02, (sd2[1] - sd[1]) / 0.02 };
+}
+
+
+std::vector<int> GetNearestLeadingVehicleInLane(const vector<vector<double>>& sensor_fusion, double ego_s, int lane) {
+	double min_dist_front = std::numeric_limits<double>::max();
+	double min_dist_back = std::numeric_limits<double>::max();
+	int min_idx_front = -1;
+	int min_idx_back = -1;
+	for (size_t i = 0; i < sensor_fusion.size(); ++i) {
+		auto vehicle = sensor_fusion[i];
+		int v_lane = get_lane_no(vehicle[SENSOR_FUSION_D]);
+		if (v_lane != lane) {
+			continue;
+		}
+
+		double vehicle_s = vehicle[SENSOR_FUSION_S];
+		if (vehicle_s < ego_s) {
+			double diff = ego_s - vehicle_s;
+			if (diff < min_dist_back) {
+				min_dist_back = diff;
+				min_idx_back = static_cast<int>(i);
+			}
+		} else {
+			double diff = vehicle_s - ego_s;
+			if (diff < min_dist_front) {
+				min_dist_front = diff;
+				min_idx_front = static_cast<int>(i);
+			}
+		}
+	}
+	return {min_idx_front, min_idx_back};
 }
