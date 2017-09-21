@@ -1,4 +1,6 @@
 # CarND-Path-Planning-Project
+[//]: # (Image References)
+[sampling]: ./figures/sampling.png
 ## Model Documentation
 
 Here I'll describe how the trajectory is generated.
@@ -12,7 +14,7 @@ The 5 control points are then used to fit a spline, which is a mathematical desc
 path. After spline is fit, it is then being sampled at constant speed and constant time interval (0.02 seconds) since the 
 simulator is updating every 0.02 seconds and will move to the next point in the planned path. The process can be illustrated as below:
 
-![Sampling][figures/sampling.png]
+![Sampling][sampling]
 
 Although this is not an accurate reflection of how the ego vehicle will move because the actually path it follows is not 
 straight, the approximation performs well in this project.
