@@ -42,7 +42,7 @@ is calculated by evaluating a set of cost functions. Here're the cost function I
 | lane_cost_cost | Penalizes lane changes. |
 | safe_distance_cost | Penalizes behaviors which will end up making the ego vehicle getting too close (or even collides) with others |
 
-The target lane is determined by behavior states. By choosing the state with minimum cost, I can determine where the ego vehicle shall be in the future.
+The target lane is determined by behavior states. By choosing the state with minimum cost, I can determine where the ego vehicle shall be in the future. Codes for cost functions can be found in `cost_functions.cpp`.
 
 ### 2. How to determine the "constant speed" which is used in sampling.
 
