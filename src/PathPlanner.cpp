@@ -29,9 +29,9 @@ namespace {
 	 * Weighted cost functions
 	 */
 	std::vector<WeightedCostFunction> ALL_COST_FUNCTIONS = {
-		{ max_allowed_velocity_cost,  20.0   },
+		{ max_allowed_velocity_cost,  25.0   },
 		{ lane_change_cost,           5.0    },
-//		{ high_traffic_cost,          2.0    },
+		{ buffer_cost,                1.0    },
 		{ safe_distance_cost,         1000.0 }
 	};
 
@@ -155,7 +155,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 			// how far shall we predict (in seconds)
 			double future_t = 5;
 			// and this is where the ego vehicle will be after that future seconds
-			double new_s = (car_s + car_speed * future_t);
+			double new_s = (ref_s + ref_v * (future_t - path_x_vals.size() * pg_interval));
 
 			// Keep Lane shall check against the vehicle in front of the ego vehicle
 			// and see if there's any possible collision. If yes, reference speed will
@@ -202,7 +202,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 				double speed = ref_v;
 				// otherwise we'll have to decelerating.
 				if (dist_to_nearest < SAFE_DIST) {
-					speed = speed - 2 * accel * pg_interval;
+					speed = speed - accel * pg_interval;
 				}
 				// to avoid decelerating too much, once we have reach 90% of the target speed, we can stop deceleration.
 				if (speed < 0.9 * new_ref_speed) {
@@ -213,7 +213,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 						{get_total_cost(car_s, car_speed, current_lane, current_lane, sensor_fusion), (double)KL, speed, (double)current_lane}));
 			}
 		} else if (bs == LCL || bs == LCR){
-			// LCL / LCR are quite the same except for the new lane
+			// LCL /uite the same except for the new lane
 			int new_lane;
 			if (bs == LCL) {
 				new_lane = current_lane - 1;
@@ -223,12 +223,12 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 
 			// a simple assumption (not always be true): lane change is supposed to be able to driving at higher speed,
 			// otherwise we'll prefer staying in the current lane.
-			double speed = ref_v + accel * pg_interval;
-			if (speed > max_velocity) {
-				speed = max_velocity;
-			}
+//			double speed = ref_v + accel * pg_interval;
+//			if (speed > max_velocity) {
+//				speed = max_velocity;
+//			}
 			nextStateAndCost.emplace_back(vector<double>(
-					{get_total_cost(car_s, car_speed, current_lane, new_lane, sensor_fusion), (double)bs, speed, (double)new_lane}));
+					{get_total_cost(car_s, car_speed, current_lane, new_lane, sensor_fusion), (double)bs, ref_v, (double)new_lane}));
 		}
 	}
 

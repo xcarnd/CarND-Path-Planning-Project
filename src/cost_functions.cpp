@@ -5,22 +5,25 @@
 using namespace std;
 
 /**
- * Penalizes high traffic lane
- *
- * Simply calculate how many vehicles are there in the target lane
+ * Mainly used when breaking tie in lane change. Awards behavior which will get
+ * more buffer distance in the target lane.
  */
-double high_traffic_cost(double start_s, double start_speed, int start_lane,
-                         double end_s, double end_speed, int end_lane,
-                         const std::vector<std::vector<double>> &sensor_fusion) {
-	int total_traffic = 0;
-	for (size_t i = 0; i < sensor_fusion.size(); ++i) {
-		auto vehicle = sensor_fusion[i];
-		int v_lane = get_lane_no(vehicle[SENSOR_FUSION_D]);
-		if (v_lane == end_lane) {
-			++total_traffic;
-		}
+double buffer_cost(double start_s, double start_speed, int start_lane,
+                   int end_lane,
+                   const std::vector<std::vector<double>> &sensor_fusion) {
+	auto nearest = GetNearestLeadingVehicleInLane(sensor_fusion, start_s, end_lane);
+	int leading = nearest[0];
+	if (leading == -1) {
+		return -1;
 	}
-	return logistic(total_traffic);
+	const vector<double> &vehicle_state = sensor_fusion[leading];
+	double s_target = vehicle_state[SENSOR_FUSION_S];
+	// the further the ego vehicle is away from the leading vehicle, the more awards it get.
+	double diff = s_target - start_s;
+	if (diff < SAFE_DIST) {
+		return 0.0;
+	}
+	return -logistic(diff / SAFE_DIST);
 }
 
 /**

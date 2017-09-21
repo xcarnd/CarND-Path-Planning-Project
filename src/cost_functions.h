@@ -14,8 +14,8 @@ struct WeightedCostFunction {
 	double weight;
 };
 
-double high_traffic_cost(double start_s, double start_speed, int start_lane,
-                         double end_s, double end_speed, int end_lane,
+double buffer_cost(double start_s, double start_speed, int start_lane,
+                         int end_lane,
                          const std::vector<std::vector<double>> &sensor_fusion);
 
 double max_allowed_velocity_cost(double start_s, double start_speed, int start_lane, int end_lane,
