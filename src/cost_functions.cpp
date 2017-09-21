@@ -69,11 +69,26 @@ double safe_distance_cost(double start_s, double start_speed, int start_lane, in
 	// have to check vehicles leading and following the ego vehicle. If either is too close,
 	// it is considered as not safe.
 	vector<int> nearest = GetNearestLeadingVehicleInLane(sensor_fusion, start_s, end_lane);
+
+	// the strategy of checking:
+	// compute the distance between the target and the ego vehicle (noted as ds) and the difference of
+	// velocity (noted as dv).
+	// 1. if ds is too small, considered as not safe.
+	// 2. If (ds/dv) < 5.0, that means in less than 5s, the location of the
+	// the vehicles will coincide, which means collision. That's considered as not safe.
 	int idx_back = nearest[1];
 	if (idx_back > -1) {
 		const vector<double>& vehicle_state = sensor_fusion[idx_back];
 		double s_target = vehicle_state[SENSOR_FUSION_S];
-		if (abs(s_target - start_s) < SAFE_DIST / 4) {
+		double vx_target = vehicle_state[SENSOR_FUSION_VX];
+		double vy_target = vehicle_state[SENSOR_FUSION_VY];
+		double v_s_target = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
+		double diff_v = abs(start_speed - v_s_target);
+		double diff_s = abs(s_target - start_s);
+		if (diff_s < VEHICLE_LENGTH) {
+			return 1;
+		}
+		if ((diff_s / diff_v) < 5.0 && v_s_target < start_speed) {
 			return 1;
 		}
 	}
@@ -86,6 +101,9 @@ double safe_distance_cost(double start_s, double start_speed, int start_lane, in
 		double v_s_target = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
 		double diff_v = abs(start_speed - v_s_target);
 		double diff_s = abs(s_target - start_s);
+		if (diff_s < VEHICLE_LENGTH) {
+			return 1;
+		}
 		if ((diff_s / diff_v) < 5.0 && start_speed > v_s_target) {
 			return 1.0;
 		}
