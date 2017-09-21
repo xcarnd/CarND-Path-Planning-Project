@@ -21,7 +21,7 @@ constexpr double SAFE_DIST = 30.0;
 /**
  * vehicle length in meters. this is determined by doing some tries.
  */
-constexpr double VEHICLE_LENGTH = 6;
+constexpr double VEHICLE_LENGTH = 8.0;
 
 // sensor fusion data indices.
  constexpr std::size_t SENSOR_FUSION_ID = 0;

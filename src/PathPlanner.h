@@ -78,6 +78,16 @@ private:
 	BehaviorState current_state;
 
 	/**
+	 * is changing lane?
+	 */
+  bool changing_lane;
+
+	/**
+	 * the target lane when perform lane changing.
+	 */
+	int target_lane;
+
+	/**
 	 * acceleration for altering speed
 	 */
 	double accel;

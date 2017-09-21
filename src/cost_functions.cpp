@@ -43,9 +43,17 @@ double max_allowed_velocity_cost(double start_s, double start_speed, int start_l
 		double vx_target = vehicle_state[SENSOR_FUSION_VX];
 		double vy_target = vehicle_state[SENSOR_FUSION_VY];
 		auto v_s_target = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
-		double delta_s = abs(s_target - start_s);
+		double delta_s = s_target - start_s;
 		if (delta_s < SAFE_DIST) {
 			max_allowed = v_s_target;
+		} else {
+			double safe_dist = delta_s - SAFE_DIST;
+			double future_t = 5.0;
+			double delta_v = safe_dist / future_t;
+			max_allowed = v_s_target + delta_v;
+			if (max_allowed > max_v) {
+				max_allowed = max_v;
+			}
 		}
 	}
 	// the closer the allowed speed with the maximum allowed speed, the lower the cost.
@@ -87,11 +95,11 @@ double safe_distance_cost(double start_s, double start_speed, int start_lane, in
 		double vy_target = vehicle_state[SENSOR_FUSION_VY];
 		double v_s_target = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
 		double diff_v = abs(start_speed - v_s_target);
-		double diff_s = abs(s_target - start_s);
+		double diff_s = start_s - s_target;
 		if (diff_s < VEHICLE_LENGTH) {
 			return 1;
 		}
-		if ((diff_s / diff_v) < 5.0 && v_s_target < start_speed) {
+		if ((v_s_target > start_speed) && ((diff_s - VEHICLE_LENGTH) / diff_v) < 5.0)  {
 			return 1;
 		}
 	}
@@ -103,11 +111,11 @@ double safe_distance_cost(double start_s, double start_speed, int start_lane, in
 		double vy_target = vehicle_state[SENSOR_FUSION_VY];
 		double v_s_target = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
 		double diff_v = abs(start_speed - v_s_target);
-		double diff_s = abs(s_target - start_s);
+		double diff_s = s_target - start_s;
 		if (diff_s < VEHICLE_LENGTH) {
 			return 1;
 		}
-		if ((diff_s / diff_v) < 5.0 && start_speed > v_s_target) {
+		if ((start_speed > v_s_target) && ((diff_s - VEHICLE_LENGTH) / diff_v) < 5.0) {
 			return 1.0;
 		}
 	}

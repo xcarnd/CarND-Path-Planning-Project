@@ -52,14 +52,18 @@ namespace {
 	/**
 	 * Get the next possible states
 	 */
-	std::vector<BehaviorState> NextPossibleStates(int currentLane, BehaviorState currentState) {
+	std::vector<BehaviorState> NextPossibleStates(int currentLane, BehaviorState currentState, bool changingLane) {
 		std::vector<BehaviorState> result;
-		result.push_back(KL);
-		if (currentLane < 2) {
-			result.push_back(LCR);
-		}
-		if (currentLane > 0) {
-			result.push_back(LCL);
+		if (changingLane) {
+			result.push_back(currentState);
+		} else {
+			result.push_back(KL);
+			if (currentLane < 2) {
+				result.push_back(LCR);
+			}
+			if (currentLane > 0) {
+				result.push_back(LCL);
+			}
 		}
 		return result;
 	}
@@ -74,7 +78,9 @@ PathPlanner::PathPlanner(
 	  pg_interval(0.02),
 	  ref_v(0.0),
 	  accel(3),
-	  current_state(KL)
+	  current_state(KL),
+	  changing_lane(false),
+	  target_lane(-1)
 {}
 
 void
@@ -129,6 +135,12 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 		ref_heading = theta;
 	}
 
+	if (changing_lane) {
+		if (target_lane == current_lane) {
+			changing_lane = false;
+		}
+	}
+
 	//
 	// Sensor fusion data structure:
 	// [
@@ -144,7 +156,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 	//   [cost2, nextState2, nextReferenceSpeed2, nextTargetLane2, BehaviorSpecificData2...],
 	//   ...,
 	// ]
-	auto next_states = NextPossibleStates(current_lane, current_state);
+	auto next_states = NextPossibleStates(current_lane, current_state, changing_lane);
 	vector<vector<double>> nextStateAndCost;
 	// loops all the possible next behavior states and pick up the one with minimum cost
 	for (BehaviorState bs : next_states) {
@@ -300,7 +312,13 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 
 	this->ref_v = ref_speed;
 
+	if ((min_state == LCL || min_state == LCR) && current_state != min_state) {
+		changing_lane = true;
+		this->target_lane = target_lane;
+	}
+
 	current_state = min_state;
+
 }
 
 
