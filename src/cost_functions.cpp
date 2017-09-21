@@ -96,10 +96,10 @@ double safe_distance_cost(double start_s, double start_speed, int start_lane, in
 		double v_s_target = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
 		double diff_v = abs(start_speed - v_s_target);
 		double diff_s = start_s - s_target;
-		if (diff_s < VEHICLE_LENGTH) {
+		if (diff_s < DIST_TOO_CLOSE) {
 			return 1;
 		}
-		if ((v_s_target > start_speed) && ((diff_s - VEHICLE_LENGTH) / diff_v) < 5.0)  {
+		if ((v_s_target > start_speed) && ((diff_s - DIST_TOO_CLOSE) / diff_v) < 5.0)  {
 			return 1;
 		}
 	}
@@ -112,10 +112,10 @@ double safe_distance_cost(double start_s, double start_speed, int start_lane, in
 		double v_s_target = sqrt(pow(vx_target, 2) + pow(vy_target, 2));
 		double diff_v = abs(start_speed - v_s_target);
 		double diff_s = s_target - start_s;
-		if (diff_s < VEHICLE_LENGTH) {
+		if (diff_s < DIST_TOO_CLOSE) {
 			return 1;
 		}
-		if ((start_speed > v_s_target) && ((diff_s - VEHICLE_LENGTH) / diff_v) < 5.0) {
+		if ((start_speed > v_s_target) && ((diff_s - DIST_TOO_CLOSE) / diff_v) < 5.0) {
 			return 1.0;
 		}
 	}
