@@ -85,8 +85,8 @@ double safe_distance_cost(double start_s, double start_speed, int start_lane, in
 	// compute the distance between the target and the ego vehicle (noted as ds) and the difference of
 	// velocity (noted as dv).
 	// 1. if ds is too small, considered as not safe.
-	// 2. If (ds/dv) < 5.0, that means in less than 5s, the location of the
-	// the vehicles will coincide, which means collision. That's considered as not safe.
+	// 2. If ((ds-DIST_TOO_CLOSE)/dv) < 5.0, that means in less than 5s, the location of the
+	// the vehicles will getting too close or coincide, which means potential collision. That's considered as not safe.
 	int idx_back = nearest[1];
 	if (idx_back > -1) {
 		const vector<double>& vehicle_state = sensor_fusion[idx_back];

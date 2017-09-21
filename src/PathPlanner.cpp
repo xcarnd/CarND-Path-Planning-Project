@@ -77,7 +77,7 @@ PathPlanner::PathPlanner(
 	  max_velocity(getMeterPerSecond(MAX_VELOCITY)),
 	  pg_interval(0.02),
 	  ref_v(0.0),
-	  accel(3),
+	  accel(5),
 	  current_state(KL),
 	  changing_lane(false),
 	  target_lane(-1)

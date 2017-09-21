@@ -12,6 +12,8 @@ The 5 control points are then used to fit a spline, which is a mathematical desc
 path. After spline is fit, it is then being sampled at constant speed and constant time interval (0.02 seconds) since the 
 simulator is updating every 0.02 seconds and will move to the next point in the planned path. The process can be illustrated as below:
 
+![Sampling][figures/sampling.png]
+
 Although this is not an accurate reflection of how the ego vehicle will move because the actually path it follows is not 
 straight, the approximation performs well in this project.
 
@@ -26,12 +28,17 @@ The important part is picking which lane shall the vehicle be at in the future (
 I've used a simple finite state machine to do the job.
 
 In the FSM there're 3 states representing the vehicle's behavior: keeping lane (KL), lane change left (LCL) and lane change right (LCR). Given the current state
-of the ego vehicle, the FSM can decide which following behavior shall be performed. For each possible future behaviors, the cost for it
+of the ego vehicle, the FSM can decide which following behavior shall be performed.
+
+ For each possible future behaviors, the cost for it
 is calculated by evaluating a set of cost functions. Here're the cost function I've used:
 
-| Cost Function | Notes |
-|:--------------:|:------:|
-|a                |         |
+| Cost Function             |             Notes                  |
+|:-------------------------:|:----------------------------------:|
+| buffer_cost               | Awards behaviors which will end up gaining more buffer distance in the target lane.       |
+| max_allowed_velocity_cost | Penalizes behaviors which will end up with low speed in the target lane. |
+| lane_cost_cost | Penalizes lane changes. |
+| safe_distance_cost | Penalizes behaviors which will end up making the ego vehicle getting too close (or even collides) with others |
 
 The target lane is determined by behavior states. By choosing the state with minimum cost, I can determine where the ego vehicle shall be in the future.
 
@@ -44,4 +51,6 @@ Since I designed three different behavior states for the vehicle, I've assigned 
 
 1. For LCL/LCR, the reference speed won't change. (Whether it is safe to perform lane change with the reference speed is determined by the cost functions described previously)
 
-2. For KL, things get a little bit involved. When staying with KL, I 
+2. For KL, things get a little bit involved. When staying lane, I want to avoid collisions at the best efforts. That may requires the ego vehicle decelerate. To do this, I first found the nearest leading vehicle who was driving at the same lane as the ego vehicle from the sensor fusion data. Next, I predicted the future location in 5 seconds of both the ego vehicle and the nearest vehicle. If in the future the two vehicle will get closer than a threshold distance, I will decrease the reference speed until the speed of ego car reach 90% the speed of the target vehicle.
+
+If no potential collision risk, I will increase the reference speed of the ego vehicle until the reference speed reaches the maximum allowed speed.

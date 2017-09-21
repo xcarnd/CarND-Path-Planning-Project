@@ -21,7 +21,7 @@ constexpr double SAFE_DIST = 30.0;
 /**
  * distance indicating too close, in meters. this is determined by doing some tries.
  */
-constexpr double DIST_TOO_CLOSE = 10.0;
+constexpr double DIST_TOO_CLOSE = 15.0;
 
 
 // sensor fusion data indices.
