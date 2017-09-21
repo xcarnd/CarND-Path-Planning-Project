@@ -17,6 +17,9 @@ using namespace std;
 
 namespace {
 
+	/**
+	 * Weighted cost functions
+	 */
 	std::vector<WeightedCostFunction> ALL_COST_FUNCTIONS = {
 		{ max_allowed_velocity_cost,  20.0   },
 		{ lane_change_cost,           5.0    },
@@ -24,13 +27,12 @@ namespace {
 		{ safe_distance_cost,         1000.0 }
 	};
 
-	double get_total_cost(double start_s, double start_speed, int start_lane,
-	                      double end_s, double end_speed, int end_lane,
+	double get_total_cost(double start_s, double start_speed, int start_lane, int end_lane,
 	                      const std::vector<std::vector<double>> &sensor_fusion) {
 		double total = 0.0;
 		for (WeightedCostFunction wcf : ALL_COST_FUNCTIONS) {
 			total += wcf.weight * wcf.cost_function(start_s, start_speed, start_lane,
-			                                        end_s, end_speed, end_lane,
+			                                        end_lane,
 			                                        sensor_fusion);
 		}
 		return total;
@@ -172,7 +174,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 					speed = max_velocity;
 				}
 				nextStateAndCost.emplace_back(vector<double>(
-						{get_total_cost(car_s, car_speed, current_lane, new_s, new_ref_speed, current_lane, sensor_fusion), (double)KL, speed, (double)current_lane}
+						{get_total_cost(car_s, car_speed, current_lane, current_lane, sensor_fusion), (double)KL, speed, (double)current_lane}
 				));
 			} else {
 				double speed = ref_v;
@@ -184,7 +186,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 				}
 
 				nextStateAndCost.emplace_back(vector<double>(
-						{get_total_cost(car_s, car_speed, current_lane, new_s, new_ref_speed, current_lane, sensor_fusion), (double)KL, speed, (double)current_lane}));
+						{get_total_cost(car_s, car_speed, current_lane, current_lane, sensor_fusion), (double)KL, speed, (double)current_lane}));
 			}
 		} else if (bs == LCL || bs == LCR){
 			// LCL / LCR are quite the same except for the new lane
@@ -208,7 +210,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 			double new_s = (car_s + car_speed * future_t);
 
 			nextStateAndCost.emplace_back(vector<double>(
-					{get_total_cost(car_s, car_speed, current_lane, new_s, speed, new_lane, sensor_fusion), (double)bs, speed, (double)new_lane}));
+					{get_total_cost(car_s, car_speed, current_lane, new_lane, sensor_fusion), (double)bs, speed, (double)new_lane}));
 //			// if we're performing lane change with some v_d, we will then know how long it will take to
 			// perform the lane shifting.
 			// improvement: may be we can use jmt to pick one optimal lane change trajectory?
@@ -227,7 +229,7 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 	BehaviorState min_state = KL;
 	for (size_t i = 0; i < nextStateAndCost.size(); ++i) {
 		auto nsac = nextStateAndCost[i];
-		BehaviorState state = static_cast<BehaviorState>(static_cast<int>(nsac[1]));
+		auto state = static_cast<BehaviorState>(static_cast<int>(nsac[1]));
 		double cost = nsac[0];
 		if (cost < min_cost) {
 			min_idx = i;
@@ -287,8 +289,6 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 
 	this->ref_v = ref_speed;
 	current_state = static_cast<BehaviorState>(static_cast<int>(nextStateAndCost[min_idx][1]));
-	current_lane = static_cast<int>(nextStateAndCost[min_idx][3]);
-
 }
 
 

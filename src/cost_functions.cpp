@@ -24,9 +24,8 @@ double high_traffic_cost(double start_s, double start_speed, int start_lane,
 /**
  * Penalizes low speeds
  */
-double max_allowed_velocity_cost(double start_s, double start_speed, int start_lane,
-                                  double end_s, double end_speed, int end_lane,
-                                  const std::vector<std::vector<double>> &sensor_fusion) {
+double max_allowed_velocity_cost(double start_s, double start_speed, int start_lane, int end_lane,
+                                 const std::vector<std::vector<double>> &sensor_fusion) {
 	double max_v = getMeterPerSecond(MAX_VELOCITY);
 	double max_allowed = max_v;
 	int idx = GetNearestLeadingVehicleInLane(sensor_fusion, start_s, end_lane)[0];
@@ -47,8 +46,7 @@ double max_allowed_velocity_cost(double start_s, double start_speed, int start_l
 /**
  * Penalizes lane change
  */
-double lane_change_cost(double start_s, double start_speed, int start_lane,
-                        double end_s, double end_speed, int end_lane,
+double lane_change_cost(double start_s, double start_speed, int start_lane, int end_lane,
                         const std::vector<std::vector<double>> &sensor_fusion) {
 	return start_lane != end_lane ? 1.0 : 0.0;
 }
@@ -56,8 +54,7 @@ double lane_change_cost(double start_s, double start_speed, int start_lane,
 /**
  * Penalizes unsafe distance (or even collision)
  */
-double safe_distance_cost(double start_s, double start_speed, int start_lane,
-                          double end_s, double end_speed, int end_lane,
+double safe_distance_cost(double start_s, double start_speed, int start_lane, int end_lane,
                           const std::vector<std::vector<double>> &sensor_fusion) {
 	if (start_lane == end_lane) {
 		// keeping lane. keeping lane is always try to avoid collision.

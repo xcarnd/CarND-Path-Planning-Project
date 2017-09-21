@@ -73,17 +73,12 @@ private:
 	double ref_v;
 
 	/**
-	 * current lane
-	 */
-	int current_lane;
-
-	/**
 	 * current state
 	 */
 	BehaviorState current_state;
 
 	/**
-	 * acceleration when keeping lane and current velocity is not at the maximum
+	 * acceleration for altering speed
 	 */
 	double accel;
 
