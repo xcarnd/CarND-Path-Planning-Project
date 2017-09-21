@@ -6,6 +6,8 @@ using namespace std;
 
 /**
  * Penalizes high traffic lane
+ *
+ * Simply calculate how many vehicles are there in the target lane
  */
 double high_traffic_cost(double start_s, double start_speed, int start_lane,
                          double end_s, double end_speed, int end_lane,
@@ -22,7 +24,10 @@ double high_traffic_cost(double start_s, double start_speed, int start_lane,
 }
 
 /**
- * Penalizes low speeds
+ * Penalizes low allowed speed.
+ *
+ * If no collision risk, the allowed speed will be the maximum allowed speed,
+ * otherwise the same speed as the leading vehicle in that lane.
  */
 double max_allowed_velocity_cost(double start_s, double start_speed, int start_lane, int end_lane,
                                  const std::vector<std::vector<double>> &sensor_fusion) {
@@ -40,7 +45,8 @@ double max_allowed_velocity_cost(double start_s, double start_speed, int start_l
 			max_allowed = v_s_target;
 		}
 	}
-	return logistic(4 * (1 - (max_allowed / max_v)));
+	// the closer the allowed speed with the maximum allowed speed, the lower the cost.
+	return (1 - (max_allowed / max_v));
 }
 
 /**
@@ -57,9 +63,11 @@ double lane_change_cost(double start_s, double start_speed, int start_lane, int 
 double safe_distance_cost(double start_s, double start_speed, int start_lane, int end_lane,
                           const std::vector<std::vector<double>> &sensor_fusion) {
 	if (start_lane == end_lane) {
-		// keeping lane. keeping lane is always try to avoid collision.
+		// keeping lane is always try to avoid collision. (if not, that's the bug of keeping lane)
 		return 0.0;
 	}
+	// have to check vehicles leading and following the ego vehicle. If either is too close,
+	// it is considered as not safe.
 	vector<int> nearest = GetNearestLeadingVehicleInLane(sensor_fusion, start_s, end_lane);
 	int idx_back = nearest[1];
 	if (idx_back > -1) {
