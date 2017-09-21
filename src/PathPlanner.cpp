@@ -201,8 +201,12 @@ PathPlanner::get_path(double car_x, double car_y, double theta,
 			} else {
 				double speed = ref_v;
 				// otherwise we'll have to decelerating.
-				if (dist_to_nearest < SAFE_DIST / 2) {
+				if (dist_to_nearest < SAFE_DIST) {
 					speed = speed - 2 * accel * pg_interval;
+				}
+				// to avoid decelerating too much, once we have reach 90% of the target speed, we can stop deceleration.
+				if (speed < 0.9 * new_ref_speed) {
+					speed = 0.9 * new_ref_speed;
 				}
 
 				nextStateAndCost.emplace_back(vector<double>(

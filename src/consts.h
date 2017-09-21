@@ -3,12 +3,28 @@
 
 #include <cinttypes>
 
+/**
+ * max allowed velocity, in MPH
+ */
 constexpr double MAX_VELOCITY = 49.5;
+
+/*
+ * lane width, in meters
+ */
 constexpr double LANE_WIDTH = 4.0;
 
+/**
+ * safe distance for keeping lane, in meters
+ */
 constexpr double SAFE_DIST = 30.0;
 
-constexpr std::size_t SENSOR_FUSION_ID = 0;
+/**
+ * vehicle length in meters. this is determined by doing some tries.
+ */
+constexpr double VEHICLE_LENGTH = 6;
+
+// sensor fusion data indices.
+ constexpr std::size_t SENSOR_FUSION_ID = 0;
 constexpr std::size_t SENSOR_FUSION_X  = 1;
 constexpr std::size_t SENSOR_FUSION_Y  = 2;
 constexpr std::size_t SENSOR_FUSION_VX = 3;

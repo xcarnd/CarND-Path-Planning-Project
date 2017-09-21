@@ -9,6 +9,7 @@
 
 using namespace std;
 
+// Codes from starter repo
 int ClosestWaypoint(double x, double y, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
 
 	double closestLen = 100000; //large number
@@ -29,6 +30,7 @@ int ClosestWaypoint(double x, double y, const std::vector<double>& maps_x, const
 
 }
 
+// Codes from starter repo
 int NextWaypoint(double x, double y, double theta, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
 
 	int closestWaypoint = ClosestWaypoint(x, y, maps_x, maps_y);
@@ -48,6 +50,7 @@ int NextWaypoint(double x, double y, double theta, const std::vector<double>& ma
 
 }
 
+// Codes from starter repo
 std::vector<double> getFrenet(double x, double y, double theta, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
 	int next_wp = NextWaypoint(x, y, theta, maps_x, maps_y);
 
@@ -92,6 +95,7 @@ std::vector<double> getFrenet(double x, double y, double theta, const std::vecto
 
 }
 
+// Codes from starter repo
 std::vector<double>
 getXY(double s, double d, const std::vector<double>& maps_s, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
 	int prev_wp = -1;
@@ -118,16 +122,9 @@ getXY(double s, double d, const std::vector<double>& maps_s, const std::vector<d
 
 }
 
-std::vector<double> getSDVelocity(double x, double y, double vx, double vy, const std::vector<double>& maps_x, const std::vector<double>& maps_y) {
-	double heading = atan2(vy, vx);
-	auto sd = getFrenet(x, y, heading, maps_x, maps_y);
-	double nx = x + vx * 0.02;
-	double ny = y + vy * 0.02;
-	auto sd2 = getFrenet(nx, ny, heading, maps_x, maps_y);
-	return { (sd2[0] - sd[0]) / 0.02, (sd2[1] - sd[1]) / 0.02 };
-}
-
-
+/**
+ * Get the nearest vehicles leading and following the ego vehicle given the s in frenet framework of ego vehicle and target lane.
+ */
 std::vector<int> GetNearestLeadingVehicleInLane(const vector<vector<double>>& sensor_fusion, double ego_s, int lane) {
 	double min_dist_front = std::numeric_limits<double>::max();
 	double min_dist_back = std::numeric_limits<double>::max();
